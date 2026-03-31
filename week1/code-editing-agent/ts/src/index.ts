@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import OpenAI from "openai";
 import * as readline from "node:readline";
 import { tools } from "./tools";
