@@ -1,0 +1,21 @@
+{
+  "name": "code-editing-agent-slides",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "slidev --open",
+    "build": "slidev build",
+    "export": "slidev export",
+    "lint": "eslint slides.md"
+  },
+  "dependencies": {
+    "@slidev/cli": "^51",
+    "@slidev/theme-default": "latest"
+  },
+  "devDependencies": {
+    "@eslint/markdown": "^8.0.1",
+    "@typescript-eslint/parser": "^8.58.0",
+    "eslint": "^10.1.0",
+    "typescript": "^6.0.2"
+  }
+}
