@@ -449,21 +449,21 @@ layout: two-cols
 
 # Go: Chat Loop
 
-```go
+```go {2-3,7-8,13-14,23}
 func (a *Agent) Run(ctx context.Context) error {
     conversation :=
-        []openai.ChatCompletionMessageParamUnion{} // [!code highlight]
+        []openai.ChatCompletionMessageParamUnion{}
 
     fmt.Println("Chat with Agent (ctrl-c to quit)")
 
-    readUserInput := true                          // [!code highlight]
-    for {                                          // [!code highlight]
+    readUserInput := true
+    for {
         if readUserInput {
             logger.User()
             userInput, ok := a.getUserMessage()
             if !ok { break }
-            conversation = append(conversation,    // [!code highlight]
-                openai.UserMessage(userInput))     // [!code highlight]
+            conversation = append(conversation,
+                openai.UserMessage(userInput))
         }
 
         // Call the model
@@ -471,7 +471,7 @@ func (a *Agent) Run(ctx context.Context) error {
             ctx, openai.ChatCompletionNewParams{
                 Model:    "qwen/qwen3.6-plus-preview:free",
                 Messages: conversation,
-                Tools:    chatTools,                // [!code highlight]
+                Tools:    chatTools,
             })
 
         // ... handle tool calls or print response
@@ -484,26 +484,26 @@ func (a *Agent) Run(ctx context.Context) error {
 
 # TS: Chat Loop
 
-```ts
+```ts {2-3,6,11-12,17}
 async function runAgent() {
-    const messages:                                     // [!code highlight]
-        OpenAI.ChatCompletionMessageParam[] = [];      // [!code highlight]
+    const messages:
+        OpenAI.ChatCompletionMessageParam[] = [];
 
     console.log("Chat with Agent (Ctrl+C to quit)");
 
-    while (true) {                                     // [!code highlight]
+    while (true) {
         const userInput = await askUser("User: ");
         if (!userInput) break;
 
         messages.push({ role: "user", content: userInput });
 
-        let { content, toolCalls } =                   // [!code highlight]
-            await callModel(messages);                 // [!code highlight]
+        let { content, toolCalls } =
+            await callModel(messages);
 
         // ... handle tool calls or print response
 
         if (content) {
-            printThinkingAndResponse(content);         // [!code highlight]
+            printThinkingAndResponse(content);
             messages.push({ role: "assistant", content });
         }
     }
@@ -650,20 +650,20 @@ layout: two-cols
 
 # Go: Agent Loop with Tools
 
-```go
+```go {3-5,10-12}
 // After getting model response...
 
-if len(toolCalls) > 0 {                            // [!code highlight]
-    for _, tc := range toolCalls {                  // [!code highlight]
-        result := a.executeTool(                    // [!code highlight]
+if len(toolCalls) > 0 {
+    for _, tc := range toolCalls {
+        result := a.executeTool(
             tc.ID,
             tc.Function.Name,
             tc.Function.Arguments,
         )
-        conversation = append(conversation, result) // [!code highlight]
+        conversation = append(conversation, result)
     }
-    readUserInput = false                           // [!code highlight]
-    continue  // loop back without reading input    // [!code highlight]
+    readUserInput = false
+    continue  // loop back without reading input
 }
 
 // No tool calls -- print text response
@@ -677,11 +677,11 @@ readUserInput = true
 
 # TS: Agent Loop with Tools
 
-```ts
+```ts {3-4,14-16,23}
 // After getting model response...
 
-while (toolCalls.length > 0) {                          // [!code highlight]
-    messages.push({                                     // [!code highlight]
+while (toolCalls.length > 0) {
+    messages.push({
         role: "assistant",
         content: content || null,
         tool_calls: toolCalls.map((tc) => ({
@@ -691,16 +691,16 @@ while (toolCalls.length > 0) {                          // [!code highlight]
         })),
     });
 
-    for (const tc of toolCalls) {                       // [!code highlight]
-        const result = await executeTool(tc);           // [!code highlight]
-        messages.push({                                 // [!code highlight]
+    for (const tc of toolCalls) {
+        const result = await executeTool(tc);
+        messages.push({
             role: "tool",
             tool_call_id: tc.id,
             content: result,
         });
     }
 
-    ({ content, toolCalls } = await callModel(messages)); // [!code highlight]
+    ({ content, toolCalls } = await callModel(messages));
 }
 ```
 
@@ -1071,21 +1071,21 @@ layout: two-cols
 
 # Go: Streaming
 
-```go
+```go {6-7,9-11,14}
 func (a *Agent) runStreaming(ctx context.Context,
     params openai.ChatCompletionNewParams,
     stopSpinner func(),
 ) (string, []openai.ChatCompletionMessageToolCall,
     error) {
-    stream := a.client.Chat.Completions           // [!code highlight]
-        .NewStreaming(ctx, params)                 // [!code highlight]
+    stream := a.client.Chat.Completions
+        .NewStreaming(ctx, params)
 
-    var contentBuilder strings.Builder             // [!code highlight]
-    toolCallMap :=                                 // [!code highlight]
-        map[int]*openai.ChatCompletionMessageToolCall{} // [!code highlight]
+    var contentBuilder strings.Builder
+    toolCallMap :=
+        map[int]*openai.ChatCompletionMessageToolCall{}
     first := true
 
-    for stream.Next() {                            // [!code highlight]
+    for stream.Next() {
         if first {
             stopSpinner()
             first = false
@@ -1108,7 +1108,7 @@ func (a *Agent) runStreaming(ctx context.Context,
 
 # TS: Streaming
 
-```ts
+```ts {8-10,12-14,17}
 async function callModelStreaming(
     messages: OpenAI.ChatCompletionMessageParam[],
     stopSpinner: () => void,
@@ -1116,16 +1116,16 @@ async function callModelStreaming(
     content: string;
     toolCalls: AccumulatedToolCall[];
 }> {
-    const stream = await client.chat.completions   // [!code highlight]
-        .create({ model, messages, tools: chatTools, // [!code highlight]
-            stream: true });                       // [!code highlight]
+    const stream = await client.chat.completions
+        .create({ model, messages, tools: chatTools,
+            stream: true });
 
-    let content = "";                              // [!code highlight]
-    const toolCallMap =                            // [!code highlight]
-        new Map<number, AccumulatedToolCall>();     // [!code highlight]
+    let content = "";
+    const toolCallMap =
+        new Map<number, AccumulatedToolCall>();
     let first = true;
 
-    for await (const chunk of stream) {            // [!code highlight]
+    for await (const chunk of stream) {
         if (first) {
             stopSpinner();
             first = false;
