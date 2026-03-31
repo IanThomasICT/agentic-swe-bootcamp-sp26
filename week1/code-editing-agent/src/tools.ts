@@ -1,20 +1,26 @@
-import { generateText } from "ai";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { readFile, writeFile, readdir } from "fs/promises";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
-import path from "path";
-import readline from "readline";
+import * as path from "node:path";
+import type { JSONSchema } from "openai/lib/jsonschema.mjs";
 
-const openrouter = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
 
 interface ToolDefinition {
   name: string;
   description: string;
-  inputSchema: object;
+  inputSchema: JSONSchema;
   function: (input: unknown) => Promise<string>;
 }
+
+// const GetWeatherDefinition: ToolDefinition = {
+//   name: "get_weather",
+//   description: "Get the current weather for a given location.",
+//   inputSchema: {
+//     type: "object", 
+//     properties: {
+
+//   }
+
+// }
 
 const ReadFileDefinition: ToolDefinition = {
   name: "read_file",
@@ -135,83 +141,4 @@ If the file specified with path doesn't exist, it will be created.`,
   },
 };
 
-const tools = [ReadFileDefinition, ListFilesDefinition, EditFileDefinition];
-
-async function executeTool(
-  id: string,
-  name: string,
-  input: unknown
-): Promise<{ tool_call_id: string; result: string; is_error?: boolean }> {
-  const toolDef = tools.find((t) => t.name === name);
-  if (!toolDef) {
-    return { tool_call_id: id, result: "tool not found", is_error: true };
-  }
-
-  console.log(`\x1b[92mtool\x1b[0m: ${name}(${JSON.stringify(input)})`);
-
-  try {
-    const result = await toolDef.function(input);
-    return { tool_call_id: id, result };
-  } catch (err) {
-    return { tool_call_id: id, result: String(err), is_error: true };
-  }
-}
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
-function askUser(question: string): Promise<string> {
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      resolve(answer);
-    });
-  });
-}
-
-async function runAgent() {
-  let messages: { role: string; content: string }[] = [];
-
-  console.log("Chat with Claude (use Ctrl+C to quit)");
-
-  while (true) {
-    const userInput = await askUser("\x1b[94mYou\x1b[0m: ");
-
-    if (!userInput) break;
-
-    messages.push({ role: "user", content: userInput });
-
-    const result = await generateText({
-      model: openrouter("anthropic/claude-3.7-sonnet"),
-      messages,
-      tools: tools.map((tool) => ({
-        type: "function" as const,
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.inputSchema,
-      })),
-    });
-
-    for (const toolCall of result.toolCalls) {
-      const { name, input } = toolCall;
-      const toolResult = await executeTool(
-        toolCall.id || "",
-        name,
-        input as unknown
-      );
-      messages.push({
-        role: "tool",
-        content: toolResult.result,
-        tool_call_id: toolCall.id,
-      });
-    }
-
-    const text = result.text;
-    if (text) {
-      console.log(`\x1b[93mClaude\x1b[0m: ${text}`);
-    }
-  }
-}
-
-runAgent().catch(console.error);
+export const tools = [ReadFileDefinition, ListFilesDefinition, EditFileDefinition];
