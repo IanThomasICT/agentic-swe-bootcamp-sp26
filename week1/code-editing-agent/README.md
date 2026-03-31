@@ -4,6 +4,7 @@ Reference implementations of the code-editing agent from [How to Build an Agent]
 
 - **`go/`** - Go, using the OpenAI SDK via OpenRouter
 - **`ts/`** - TypeScript (Bun), using the OpenAI SDK via OpenRouter
+- **`cs/`** - C# (.NET 9), using the openai-dotnet SDK via OpenRouter
 
 Both implement the same three tools: `read_file`, `list_files`, `edit_file`.
 
@@ -33,11 +34,17 @@ Both implement the same three tools: `read_file`, `list_files`, `edit_file`.
    cd ts && bun install
    ```
 
+   **C#** ([install .NET 9](https://dotnet.microsoft.com/download)):
+   ```bash
+   cd cs && dotnet restore
+   ```
+
 ## Running
 
 ```bash
 make go    # or: cd go && go run main.go
 make ts    # or: cd ts && bun dev
+make cs    # or: cd cs && dotnet run
 ```
 
 If you don't have `make` on Windows: `choco install make`, `winget install GnuWin32.Make`, or just use the `cd` commands above.
