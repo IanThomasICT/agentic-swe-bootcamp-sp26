@@ -32,9 +32,126 @@ class Logger {
   tool(msg: string) {
     console.log(`${this.format("Tool", "\x1b[32m")}: ${msg}`);
   }
+
+  thinking(msg: string) {
+    if (this.useColor) {
+      console.log(`\x1b[3;90m${msg}\x1b[0m`);
+    } else {
+      console.log(`(thinking) ${msg}`);
+    }
+  }
+
+  startSpinner(): () => void {
+    const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    let i = 0;
+    const id = setInterval(() => {
+      process.stdout.write(`\r${frames[i++ % frames.length]}`);
+    }, 80);
+    return () => {
+      clearInterval(id);
+      process.stdout.write("\r\x1b[K");
+    };
+  }
 }
 
 const logger = new Logger();
+
+function printThinkingAndResponse(content: string) {
+  // Qwen wraps reasoning in <think>...</think> tags
+  const thinkMatch = content.match(/^<think>([\s\S]*?)<\/think>([\s\S]*)$/);
+  if (thinkMatch) {
+    const thinking = thinkMatch[1].trim();
+    const answer = thinkMatch[2].trim();
+    if (thinking) logger.thinking(thinking);
+    if (answer) logger.agent(answer);
+  } else {
+    logger.agent(content);
+  }
+}
+
+interface AccumulatedToolCall {
+  id: string;
+  function: { name: string; arguments: string };
+}
+
+async function callModelStreaming(
+  messages: OpenAI.ChatCompletionMessageParam[],
+  stopSpinner: () => void,
+): Promise<{ content: string; toolCalls: AccumulatedToolCall[] }> {
+  const stream = await client.chat.completions.create({
+    model,
+    messages,
+    tools: chatTools,
+    stream: true,
+  });
+
+  let content = "";
+  const toolCallMap = new Map<number, AccumulatedToolCall>();
+  let first = true;
+
+  for await (const chunk of stream) {
+    if (first) {
+      stopSpinner();
+      first = false;
+    }
+
+    const delta = chunk.choices[0]?.delta;
+    if (!delta) continue;
+
+    if (delta.content) content += delta.content;
+
+    if (delta.tool_calls) {
+      for (const tc of delta.tool_calls) {
+        let existing = toolCallMap.get(tc.index);
+        if (!existing) {
+          existing = { id: "", function: { name: "", arguments: "" } };
+          toolCallMap.set(tc.index, existing);
+        }
+        if (tc.id) existing.id = tc.id;
+        if (tc.function?.name) existing.function.name = tc.function.name;
+        if (tc.function?.arguments)
+          existing.function.arguments += tc.function.arguments;
+      }
+    }
+  }
+
+  if (first) stopSpinner();
+
+  const toolCalls: AccumulatedToolCall[] = [];
+  for (let i = 0; i < toolCallMap.size; i++) {
+    const tc = toolCallMap.get(i);
+    if (tc) toolCalls.push(tc);
+  }
+
+  return { content, toolCalls };
+}
+
+async function callModel(
+  messages: OpenAI.ChatCompletionMessageParam[],
+): Promise<{ content: string; toolCalls: AccumulatedToolCall[] }> {
+  const stopSpinner = logger.startSpinner();
+
+  try {
+    return await callModelStreaming(messages, stopSpinner);
+  } catch {
+    // Fallback to non-streaming
+    stopSpinner();
+    const response = await client.chat.completions.create({
+      model,
+      messages,
+      tools: chatTools,
+    });
+    const msg = response.choices[0]!.message;
+    const toolCalls = (msg.tool_calls ?? []).map((tc) => ({
+      id: tc.id,
+      function: {
+        name: tc.function.name,
+        arguments: tc.function.arguments,
+      },
+    }));
+    return { content: msg.content ?? "", toolCalls };
+  }
+}
 
 // Import tools from tools.ts
 const chatTools: OpenAI.ChatCompletionTool[] = tools.map((t) => ({
@@ -88,51 +205,38 @@ async function runAgent() {
     }
   } catch {}
 
-
   console.log("Chat with Agent (use Ctrl+C to quit)");
 
   while (true) {
     const userInput = await askUser("User: ");
-
     if (!userInput) break;
 
     messages.push({ role: "user", content: userInput });
 
-    let response = await client.chat.completions.create({
-      model,
-      messages,
-      tools: chatTools,
-    });
+    let { content, toolCalls } = await callModel(messages);
 
-    let assistantMessage = response.choices[0]!.message;
-
-    while (assistantMessage.tool_calls?.length) {
-      messages.push(assistantMessage);
-
-      for (const tc of assistantMessage.tool_calls) {
-        if (tc.type === "function") {
-          const result = await executeTool(tc);
-          messages.push({
-            role: "tool",
-            tool_call_id: tc.id,
-            content: result,
-          });
-        }
-      }
-
-      response = await client.chat.completions.create({
-        model,
-        messages,
-        tools: chatTools,
+    while (toolCalls.length > 0) {
+      messages.push({
+        role: "assistant",
+        content: content || null,
+        tool_calls: toolCalls.map((tc) => ({
+          id: tc.id,
+          type: "function" as const,
+          function: tc.function,
+        })),
       });
 
-      assistantMessage = response.choices[0]!.message;
+      for (const tc of toolCalls) {
+        const result = await executeTool(tc as OpenAI.ChatCompletionMessageFunctionToolCall);
+        messages.push({ role: "tool", tool_call_id: tc.id, content: result });
+      }
+
+      ({ content, toolCalls } = await callModel(messages));
     }
 
-    const text = assistantMessage.content;
-    if (text) {
-      logger.agent(text);
-      messages.push({ role: "assistant", content: text });
+    if (content) {
+      printThinkingAndResponse(content);
+      messages.push({ role: "assistant", content });
     }
   }
 }
