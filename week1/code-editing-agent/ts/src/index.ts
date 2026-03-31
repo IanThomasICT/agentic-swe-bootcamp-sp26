@@ -80,6 +80,15 @@ async function executeTool(toolCall: OpenAI.ChatCompletionMessageFunctionToolCal
 async function runAgent() {
   const messages: OpenAI.ChatCompletionMessageParam[] = [];
 
+  // Load AGENTS.md as system prompt if it exists
+  try {
+    const agentsMd = await Bun.file("../AGENTS.md").text();
+    if (agentsMd.trim()) {
+      messages.push({ role: "system", content: agentsMd });
+    }
+  } catch {}
+
+
   console.log("Chat with Agent (use Ctrl+C to quit)");
 
   while (true) {

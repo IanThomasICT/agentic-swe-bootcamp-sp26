@@ -285,6 +285,11 @@ type Agent struct {
 func (a *Agent) Run(ctx context.Context) error {
 	conversation := []openai.ChatCompletionMessageParamUnion{} // []anthropic.MessageParam{}
 
+	// Load AGENTS.md as system prompt if it exists
+	if content, err := os.ReadFile("../AGENTS.md"); err == nil && len(strings.TrimSpace(string(content))) > 0 {
+		conversation = append(conversation, openai.SystemMessage(string(content)))
+	}
+
 	fmt.Println("Chat with Agent (use 'ctrl-c' to quit)")
 
 	// Build the tools param once
