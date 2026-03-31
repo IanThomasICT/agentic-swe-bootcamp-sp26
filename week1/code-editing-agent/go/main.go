@@ -239,7 +239,7 @@ func createNewFile(filePath, content string) (string, error) {
 // --- Agent ---
 
 func main() {
-	err := dotenv.Load()
+	err := dotenv.Load("../.env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
