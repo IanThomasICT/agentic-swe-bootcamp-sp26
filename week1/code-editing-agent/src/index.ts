@@ -10,6 +10,33 @@ const client = new OpenAI({
 
 const model = "qwen/qwen3.6-plus-preview:free";
 
+class Logger {
+  private useColor: boolean;
+
+  constructor() {
+    this.useColor = !!process.env.SHELL || !!process.env.PSModulePath;
+  }
+
+  private format(label: string, color: string): string {
+    return this.useColor ? `${color}${label}\x1b[0m` : label;
+  }
+
+  agent(msg: string) {
+    console.log(`${this.format("Agent", "\x1b[94m")}: ${msg}`);
+  }
+
+  user() {
+    process.stdout.write(`${this.format("User", "\x1b[97m")}: `);
+  }
+
+  tool(msg: string) {
+    console.log(`${this.format("Tool", "\x1b[32m")}: ${msg}`);
+  }
+}
+
+const logger = new Logger();
+
+// Import tools from tools.ts
 const chatTools: OpenAI.ChatCompletionTool[] = tools.map((t) => ({
   type: "function" as const,
   function: {
@@ -41,7 +68,7 @@ async function executeTool(toolCall: OpenAI.ChatCompletionMessageFunctionToolCal
   }
 
   const input = JSON.parse(args);
-  console.log(`\x1b[92mtool\x1b[0m: ${name}(${JSON.stringify(input)})`);
+  logger.tool(`${name}(${JSON.stringify(input)})`);
 
   try {
     return await toolDef.function(input);
@@ -56,7 +83,7 @@ async function runAgent() {
   console.log("Chat with Agent (use Ctrl+C to quit)");
 
   while (true) {
-    const userInput = await askUser("\x1b[94mYou\x1b[0m: ");
+    const userInput = await askUser("User: ");
 
     if (!userInput) break;
 
@@ -95,7 +122,7 @@ async function runAgent() {
 
     const text = assistantMessage.content;
     if (text) {
-      console.log(`\x1b[93mAgent\x1b[0m: ${text}`);
+      logger.agent(text);
       messages.push({ role: "assistant", content: text });
     }
   }
