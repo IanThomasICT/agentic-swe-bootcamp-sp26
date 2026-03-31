@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	dotenv "github.com/joho/godotenv"
 	openai "github.com/openai/openai-go" // anthropic "github.com/anthropics/anthropic-sdk-go"
@@ -48,7 +49,53 @@ func (l *Logger) Tool(msg string) {
 	fmt.Printf("%s: %s\n", l.format("Tool", "\x1b[32m"), msg)
 }
 
+func (l *Logger) Thinking(msg string) {
+	if l.useColor {
+		fmt.Printf("\x1b[3;90m%s\x1b[0m\n", msg) // italic grey
+	} else {
+		fmt.Printf("(thinking) %s\n", msg)
+	}
+}
+
+func (l *Logger) StartSpinner() func() {
+	stop := make(chan struct{})
+	go func() {
+		frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		i := 0
+		for {
+			select {
+			case <-stop:
+				fmt.Print("\r\x1b[K")
+				return
+			default:
+				fmt.Printf("\r%s", frames[i%len(frames)])
+				i++
+				time.Sleep(80 * time.Millisecond)
+			}
+		}
+	}()
+	return func() { close(stop) }
+}
+
 var logger = NewLogger()
+
+func printThinkingAndResponse(content string) {
+	thinkStart := strings.Index(content, "<think>")
+	thinkEnd := strings.Index(content, "</think>")
+
+	if thinkStart != -1 && thinkEnd != -1 && thinkEnd > thinkStart {
+		thinking := strings.TrimSpace(content[thinkStart+7 : thinkEnd])
+		answer := strings.TrimSpace(content[thinkEnd+8:])
+		if thinking != "" {
+			logger.Thinking(thinking)
+		}
+		if answer != "" {
+			logger.Agent(answer)
+		}
+	} else {
+		logger.Agent(content)
+	}
+}
 
 // --- Tool Definitions ---
 
@@ -316,22 +363,52 @@ func (a *Agent) Run(ctx context.Context) error {
 			conversation = append(conversation, openai.UserMessage(userInput)) // anthropic.NewUserMessage(anthropic.NewTextBlock(userInput))
 		}
 
-		message, err := a.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{ // a.client.Messages.New(ctx, anthropic.MessageNewParams{
+		stopSpinner := logger.StartSpinner()
+
+		params := openai.ChatCompletionNewParams{ // anthropic.MessageNewParams{
 			Model:    "qwen/qwen3.6-plus-preview:free", // anthropic.ModelClaude3_7SonnetLatest
 			Messages: conversation,
 			Tools:    chatTools, // Tools: anthropicTools
-		})
-		if err != nil {
-			return err
 		}
 
-		assistantMsg := message.Choices[0].Message                  // anthropic returns *anthropic.Message directly (no Choices)
-		conversation = append(conversation, assistantMsg.ToParam()) // message.ToParam()
+		// Try streaming, fall back to non-streaming on error
+		// anthropic streaming: client.Messages.NewStreaming(ctx, params)
+		content, toolCalls, err := a.runStreaming(ctx, params, stopSpinner)
+		if err != nil {
+			// Fallback to non-streaming
+			stopSpinner()
+			message, err := a.client.Chat.Completions.New(ctx, params) // a.client.Messages.New(ctx, anthropic.MessageNewParams{...})
+			if err != nil {
+				return err
+			}
+			assistantMsg := message.Choices[0].Message                  // anthropic returns *anthropic.Message directly (no Choices)
+			conversation = append(conversation, assistantMsg.ToParam()) // message.ToParam()
+			content = assistantMsg.Content
+			toolCalls = make([]openai.ChatCompletionMessageToolCall, len(assistantMsg.ToolCalls))
+			copy(toolCalls, assistantMsg.ToolCalls)
+		} else {
+			// Build assistant message param from accumulated streaming data
+			assistantParam := openai.AssistantMessage(content)
+			if len(toolCalls) > 0 {
+				tcParams := make([]openai.ChatCompletionMessageToolCallParam, len(toolCalls))
+				for i, tc := range toolCalls {
+					tcParams[i] = openai.ChatCompletionMessageToolCallParam{
+						ID: tc.ID,
+						Function: openai.ChatCompletionMessageToolCallFunctionParam{
+							Name:      tc.Function.Name,
+							Arguments: tc.Function.Arguments,
+						},
+					}
+				}
+				assistantParam.OfAssistant.ToolCalls = tcParams
+			}
+			conversation = append(conversation, assistantParam)
+		}
 
 		// Process tool calls
 		// anthropic: iterate message.Content, check content.Type == "tool_use", use content.ID/content.Name/content.Input
-		if len(assistantMsg.ToolCalls) > 0 { // anthropic: len(toolResults) > 0 after iterating message.Content
-			for _, tc := range assistantMsg.ToolCalls {
+		if len(toolCalls) > 0 { // anthropic: len(toolResults) > 0 after iterating message.Content
+			for _, tc := range toolCalls {
 				result := a.executeTool(tc.ID, tc.Function.Name, tc.Function.Arguments) // anthropic: content.ID, content.Name, content.Input
 				conversation = append(conversation, result)
 			}
@@ -339,15 +416,76 @@ func (a *Agent) Run(ctx context.Context) error {
 			continue
 		}
 
-		// Print text response
+		// Print text response with thinking support
 		// anthropic: iterate message.Content, check content.Type == "text", print content.Text
-		if assistantMsg.Content != "" {
-			logger.Agent(assistantMsg.Content)
+		if content != "" {
+			printThinkingAndResponse(content)
 		}
 		readUserInput = true
 	}
 
 	return nil
+}
+
+func (a *Agent) runStreaming(ctx context.Context, params openai.ChatCompletionNewParams, stopSpinner func()) (string, []openai.ChatCompletionMessageToolCall, error) {
+	stream := a.client.Chat.Completions.NewStreaming(ctx, params)
+
+	var contentBuilder strings.Builder
+	toolCallMap := map[int]*openai.ChatCompletionMessageToolCall{}
+	first := true
+
+	for stream.Next() {
+		if first {
+			stopSpinner()
+			first = false
+		}
+
+		chunk := stream.Current()
+		if len(chunk.Choices) == 0 {
+			continue
+		}
+		delta := chunk.Choices[0].Delta
+
+		if delta.Content != "" {
+			contentBuilder.WriteString(delta.Content)
+		}
+
+		for _, tc := range delta.ToolCalls {
+			idx := int(tc.Index)
+			existing, ok := toolCallMap[idx]
+			if !ok {
+				existing = &openai.ChatCompletionMessageToolCall{}
+				toolCallMap[idx] = existing
+			}
+			if tc.ID != "" {
+				existing.ID = tc.ID
+			}
+			if tc.Function.Name != "" {
+				existing.Function.Name = tc.Function.Name
+			}
+			if tc.Function.Arguments != "" {
+				existing.Function.Arguments += tc.Function.Arguments
+			}
+		}
+	}
+
+	if err := stream.Err(); err != nil {
+		return "", nil, err
+	}
+
+	// If spinner never stopped (empty response), stop it now
+	if first {
+		stopSpinner()
+	}
+
+	var toolCalls []openai.ChatCompletionMessageToolCall
+	for i := 0; i < len(toolCallMap); i++ {
+		if tc, ok := toolCallMap[i]; ok {
+			toolCalls = append(toolCalls, *tc)
+		}
+	}
+
+	return contentBuilder.String(), toolCalls, nil
 }
 
 // anthropic signature: executeTool(id, name string, input json.RawMessage) anthropic.ContentBlockParamUnion
