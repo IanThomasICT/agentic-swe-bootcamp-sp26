@@ -102,7 +102,7 @@ The first mutation after mount is skipped (initial render). The component uses `
 
 Style pseudocode as Python (```` ```python ````), using `def`, `snake_case`, `True`/`False`, `#` comments, and docstrings. This gives proper syntax highlighting while remaining language-agnostic in spirit.
 
-## Side-by-Side Code (Go / TS)
+## Side-by-Side Code (C# / TS)
 
 Use `layout: two-cols` with `::right::` separator. Always include a per-slide `<style>` block to control font size since code must fit in half-width:
 
@@ -111,10 +111,10 @@ Use `layout: two-cols` with `::right::` separator. Always include a per-slide `<
 layout: two-cols
 ---
 
-# Go: Feature Name
+# C#: Feature Name
 
-```go {highlighted-lines}
-// Go code
+```csharp {highlighted-lines}
+// C# code
 ```
 
 ::right::
@@ -162,7 +162,7 @@ All TS code blocks in `slides.md` must pass `bunx eslint slides.md`. This means:
 - TS snippets must be syntactically valid standalone (no anonymous `async function(input)` -- use named functions)
 - Object literals shown as snippets should be wrapped in a `const x = { ... }` assignment
 - Method definitions (like `startSpinner(): void { ... }`) need to be written as `function startSpinner(): void { ... }`
-- Go code blocks are not linted (no Go eslint plugin)
+- C# code blocks are not linted (no C# eslint plugin)
 
 ## File Organization
 

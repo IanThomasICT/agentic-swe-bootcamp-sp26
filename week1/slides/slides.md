@@ -29,7 +29,7 @@ h1 {
 
 > "It's an LLM, a loop, and enough tokens."
 
-The original tutorial builds a fully functioning code-editing agent in **~300 lines of Go**.
+The original tutorial builds a fully functioning code-editing agent in **~300 lines of Go**. We'll reimplement it in **TypeScript** and **C#**.
 
 <v-clicks>
 
@@ -182,186 +182,179 @@ Trade-off: free-tier models may train on your inputs. Don't send anything sensit
 <AutoScroll :sections="['', '--- Message types', '--- Tool definitions', '$bottom']">
 
 ````md magic-move
-```go
-// ---- main.go (Anthropic SDK) ----
+```csharp
+// ---- Program.cs (Anthropic SDK) ----
 
-import "github.com/anthropics/anthropic-sdk-go"
+using Anthropic;
 
-client := anthropic.NewClient()  // auto-reads ANTHROPIC_API_KEY
+var client = new AnthropicClient();  // auto-reads ANTHROPIC_API_KEY
 
 // --- Message types ---
 
-conversation := []anthropic.MessageParam{}
-anthropic.NewUserMessage(anthropic.NewTextBlock(userInput))
-conversation = append(conversation, message.ToParam())
-message.Content  // iterate for text / tool_use
+var messages = new List<Message>();
+messages.Add(Message.CreateUserMessage(userInput));
+response.Content  // iterate for text / tool_use
 
 // --- Tool definitions ---
 
-anthropic.ToolInputSchemaParam
-GenerateSchema[ReadFileInput]()  // reflection-based
-anthropic.ToolParam{
-    Name:        tool.Name,
-    Description: anthropic.String(tool.Description),
-    InputSchema: tool.InputSchema,
+new Tool {
+    Name = tool.Name,
+    Description = tool.Description,
+    InputSchema = JsonSchema.FromType<ReadFileInput>()  // reflection-based
 }
 
 // --- Tool results ---
 
-anthropic.NewToolResultBlock(id, response, false)
-anthropic.NewToolResultBlock(id, err.Error(), true)
-conversation = append(conversation,
-    anthropic.NewUserMessage(toolResults...))
+new ToolResultContent(id, response)
+new ToolResultContent(id, err.Message, isError: true)
+messages.Add(Message.CreateUserMessage(toolResults))
 ```
 
-```go
-// ---- main.go (OpenAI SDK via OpenRouter) ----
+```csharp
+// ---- Program.cs (OpenAI SDK via OpenRouter) ----
 
-import openai "github.com/openai/openai-go"       // was anthropic-sdk-go
-import "github.com/openai/openai-go/option"        // new: explicit client config
+using OpenAI.Chat;                                    // was Anthropic
+using System.ClientModel;                             // new: credential types
 
-client := openai.NewClient(                        // was anthropic.NewClient()
-    option.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
-    option.WithBaseURL("https://openrouter.ai/api/v1"),
-)
+var client = new ChatClient(                          // was AnthropicClient()
+    model,
+    new ApiKeyCredential(apiKey),
+    new OpenAI.OpenAIClientOptions {
+        Endpoint = new Uri("https://openrouter.ai/api/v1")
+    }
+);
 
 // --- Message types ---
 
-conversation := []anthropic.MessageParam{}
-anthropic.NewUserMessage(anthropic.NewTextBlock(userInput))
-conversation = append(conversation, message.ToParam())
-message.Content  // iterate for text / tool_use
+var messages = new List<Message>();
+messages.Add(Message.CreateUserMessage(userInput));
+response.Content  // iterate for text / tool_use
 
 // --- Tool definitions ---
 
-anthropic.ToolInputSchemaParam
-GenerateSchema[ReadFileInput]()  // reflection-based
-anthropic.ToolParam{
-    Name:        tool.Name,
-    Description: anthropic.String(tool.Description),
-    InputSchema: tool.InputSchema,
+new Tool {
+    Name = tool.Name,
+    Description = tool.Description,
+    InputSchema = JsonSchema.FromType<ReadFileInput>()  // reflection-based
 }
 
 // --- Tool results ---
 
-anthropic.NewToolResultBlock(id, response, false)
-anthropic.NewToolResultBlock(id, err.Error(), true)
-conversation = append(conversation,
-    anthropic.NewUserMessage(toolResults...))
+new ToolResultContent(id, response)
+new ToolResultContent(id, err.Message, isError: true)
+messages.Add(Message.CreateUserMessage(toolResults))
 ```
 
-```go
-// ---- main.go (OpenAI SDK via OpenRouter) ----
+```csharp
+// ---- Program.cs (OpenAI SDK via OpenRouter) ----
 
-import openai "github.com/openai/openai-go"
-import "github.com/openai/openai-go/option"
+using OpenAI.Chat;
+using System.ClientModel;
 
-client := openai.NewClient(
-    option.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
-    option.WithBaseURL("https://openrouter.ai/api/v1"),
-)
+var client = new ChatClient(
+    model,
+    new ApiKeyCredential(apiKey),
+    new OpenAI.OpenAIClientOptions {
+        Endpoint = new Uri("https://openrouter.ai/api/v1")
+    }
+);
 
 // --- Message types ---
 
-conversation := []openai.ChatCompletionMessageParamUnion{}  // was []anthropic.MessageParam{}
-openai.UserMessage(userInput)  // was anthropic.NewUserMessage(anthropic.NewTextBlock(...))
-conversation = append(conversation,
-    message.Choices[0].Message.ToParam())  // was message.ToParam()
-message.Choices[0].Message.Content    // was message.Content
-message.Choices[0].Message.ToolCalls  // was inline in Content
+var messages = new List<ChatMessage>();  // was List<Message>
+ChatMessage.CreateUserMessage(userInput);  // was Message.CreateUserMessage(...)
+messages.Add(msg);
+response.Value.Content    // was response.Content
+response.Value.ToolCalls  // was inline in Content
 
 // --- Tool definitions ---
 
-anthropic.ToolInputSchemaParam
-GenerateSchema[ReadFileInput]()  // reflection-based
-anthropic.ToolParam{
-    Name:        tool.Name,
-    Description: anthropic.String(tool.Description),
-    InputSchema: tool.InputSchema,
+new Tool {
+    Name = tool.Name,
+    Description = tool.Description,
+    InputSchema = JsonSchema.FromType<ReadFileInput>()  // reflection-based
 }
 
 // --- Tool results ---
 
-anthropic.NewToolResultBlock(id, response, false)
-anthropic.NewToolResultBlock(id, err.Error(), true)
-conversation = append(conversation,
-    anthropic.NewUserMessage(toolResults...))
+new ToolResultContent(id, response)
+new ToolResultContent(id, err.Message, isError: true)
+messages.Add(Message.CreateUserMessage(toolResults))
 ```
 
-```go
-// ---- main.go (OpenAI SDK via OpenRouter) ----
+```csharp
+// ---- Program.cs (OpenAI SDK via OpenRouter) ----
 
-import openai "github.com/openai/openai-go"
-import "github.com/openai/openai-go/option"
+using OpenAI.Chat;
+using System.ClientModel;
 
-client := openai.NewClient(
-    option.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
-    option.WithBaseURL("https://openrouter.ai/api/v1"),
-)
+var client = new ChatClient(
+    model,
+    new ApiKeyCredential(apiKey),
+    new OpenAI.OpenAIClientOptions {
+        Endpoint = new Uri("https://openrouter.ai/api/v1")
+    }
+);
 
 // --- Message types ---
 
-conversation := []openai.ChatCompletionMessageParamUnion{}
-openai.UserMessage(userInput)
-conversation = append(conversation,
-    message.Choices[0].Message.ToParam())
-message.Choices[0].Message.Content
-message.Choices[0].Message.ToolCalls
+var messages = new List<ChatMessage>();
+ChatMessage.CreateUserMessage(userInput);
+messages.Add(msg);
+response.Value.Content
+response.Value.ToolCalls
 
 // --- Tool definitions ---
 
-shared.FunctionParameters  // was anthropic.ToolInputSchemaParam (now a plain map)
-// Manual JSON schema as map literal  (was GenerateSchema[T]() reflection)
-shared.FunctionDefinitionParam{  // was anthropic.ToolParam
-    Name:        tool.Name,
-    Description: openai.String(tool.Description),  // was anthropic.String(...)
-    Parameters:  tool.Parameters,  // was InputSchema: tool.InputSchema
-}
+ChatTool.CreateFunctionTool(  // was new Tool { ... }
+    t.Name, t.Description,
+    t.InputSchema             // BinaryData JSON schema
+);
+// Manual JSON schema as BinaryData  (was JsonSchema.FromType<T>() reflection)
+BinaryData.FromString("""{ "type": "object", ... }""");
 
 // --- Tool results ---
 
-anthropic.NewToolResultBlock(id, response, false)
-anthropic.NewToolResultBlock(id, err.Error(), true)
-conversation = append(conversation,
-    anthropic.NewUserMessage(toolResults...))
+new ToolResultContent(id, response)
+new ToolResultContent(id, err.Message, isError: true)
+messages.Add(Message.CreateUserMessage(toolResults))
 ```
 
-```go
-// ---- main.go (OpenAI SDK via OpenRouter) ----
+```csharp
+// ---- Program.cs (OpenAI SDK via OpenRouter) ----
 
-import openai "github.com/openai/openai-go"
-import "github.com/openai/openai-go/option"
+using OpenAI.Chat;
+using System.ClientModel;
 
-client := openai.NewClient(
-    option.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
-    option.WithBaseURL("https://openrouter.ai/api/v1"),
-)
+var client = new ChatClient(
+    model,
+    new ApiKeyCredential(apiKey),
+    new OpenAI.OpenAIClientOptions {
+        Endpoint = new Uri("https://openrouter.ai/api/v1")
+    }
+);
 
 // --- Message types ---
 
-conversation := []openai.ChatCompletionMessageParamUnion{}
-openai.UserMessage(userInput)
-conversation = append(conversation,
-    message.Choices[0].Message.ToParam())
-message.Choices[0].Message.Content
-message.Choices[0].Message.ToolCalls
+var messages = new List<ChatMessage>();
+ChatMessage.CreateUserMessage(userInput);
+messages.Add(msg);
+response.Value.Content
+response.Value.ToolCalls
 
 // --- Tool definitions ---
 
-shared.FunctionParameters
-// Manual JSON schema as map literal
-shared.FunctionDefinitionParam{
-    Name:        tool.Name,
-    Description: openai.String(tool.Description),
-    Parameters:  tool.Parameters,
-}
+ChatTool.CreateFunctionTool(
+    t.Name, t.Description,
+    t.InputSchema
+);
+BinaryData.FromString("""{ "type": "object", ... }""");
 
 // --- Tool results ---
 
-openai.ToolMessage(response, id)  // was NewToolResultBlock(id, response, false)
-openai.ToolMessage(fmt.Sprintf("Error: %s", err), id)  // was NewToolResultBlock(id, err, true)
-conversation = append(conversation,
-    openai.ToolMessage(response, id))  // was NewUserMessage(toolResults...)
+ChatMessage.CreateToolMessage(tc.Id, result)  // was ToolResultContent(id, response)
+// errors are just strings now   (was isError: true flag)
+messages.Add(ChatMessage.CreateToolMessage(tc.Id, result))  // was CreateUserMessage
 ```
 ````
 
@@ -371,37 +364,31 @@ conversation = append(conversation,
 layout: two-cols
 ---
 
-# Go: Client Setup
+# C#: Client Setup
 
-```go
-package main
+```csharp
+using System.ClientModel;
+using OpenAI.Chat;
 
-import (
-    dotenv "github.com/joho/godotenv"
-    openai "github.com/openai/openai-go"
-    "github.com/openai/openai-go/option"
-)
+DotNetEnv.Env.Load("../.env");
 
-func main() {
-    dotenv.Load("../.env")
-
-    client := openai.NewClient(
-        option.WithAPIKey(
-            os.Getenv("OPENROUTER_API_KEY"),
-        ),
-        option.WithBaseURL(
-            "https://openrouter.ai/api/v1",
-        ),
-    )
-
-    tools := []ToolDefinition{
-        ReadFileDefinition,
-        ListFilesDefinition,
-        EditFileDefinition,
+var model = "qwen/qwen3.6-plus-preview:free";
+var apiKey = Environment.GetEnvironmentVariable(
+    "OPENROUTER_API_KEY") ?? "";
+var client = new ChatClient(
+    model,
+    new ApiKeyCredential(apiKey),
+    new OpenAI.OpenAIClientOptions {
+        Endpoint = new Uri(
+            "https://openrouter.ai/api/v1")
     }
-    agent := NewAgent(&client, getUserMessage, tools)
-    agent.Run(context.TODO())
-}
+);
+
+// Build chat tools from ToolDefinitions
+var chatTools = ToolDefinitions.Tools
+    .Select(t => ChatTool.CreateFunctionTool(
+        t.Name, t.Description, t.InputSchema))
+    .ToList();
 ```
 
 ::right::
@@ -447,36 +434,33 @@ runAgent().catch(console.error);
 layout: two-cols
 ---
 
-# Go: Chat Loop
+# C#: Chat Loop
 
-```go {2-3,7-8,13-14,23}
-func (a *Agent) Run(ctx context.Context) error {
-    conversation :=
-        []openai.ChatCompletionMessageParamUnion{}
+```csharp {1-2,5,9-10,14}
+var messages = new List<ChatMessage>();
 
-    fmt.Println("Chat with Agent (ctrl-c to quit)")
+Console.WriteLine("Chat with Agent (Ctrl+C to quit)");
 
-    readUserInput := true
-    for {
-        if readUserInput {
-            logger.User()
-            userInput, ok := a.getUserMessage()
-            if !ok { break }
-            conversation = append(conversation,
-                openai.UserMessage(userInput))
-        }
+while (true)
+{
+    logger.User();
+    var userInput = Console.ReadLine();
+    if (string.IsNullOrEmpty(userInput)) break;
 
-        // Call the model
-        message, err := a.client.Chat.Completions.New(
-            ctx, openai.ChatCompletionNewParams{
-                Model:    "qwen/qwen3.6-plus-preview:free",
-                Messages: conversation,
-                Tools:    chatTools,
-            })
+    messages.Add(
+        ChatMessage.CreateUserMessage(userInput));
 
-        // ... handle tool calls or print response
+    var (content, toolCalls) =
+        await CallModel(messages);
+
+    // ... handle tool calls or print response
+
+    if (!string.IsNullOrEmpty(content))
+    {
+        PrintThinkingAndResponse(content);
+        messages.Add(
+            ChatMessage.CreateAssistantMessage(content));
     }
-    return nil
 }
 ```
 
@@ -520,30 +504,32 @@ async function runAgent() {
 layout: two-cols
 ---
 
-# Go: ToolDefinition
+# C#: ToolDefinition
 
-```go
-type ToolDefinition struct {
-    Name        string
-    Description string
-    Parameters  shared.FunctionParameters
-    Function    func(input json.RawMessage) (string, error)
-}
+```csharp
+record ToolDefinition(
+    string Name,
+    string Description,
+    BinaryData InputSchema,
+    Func<JsonElement, Task<string>> Function
+);
 ```
 
-Schema defined as a **map literal**:
+Schema defined as a **raw JSON string**:
 
-```go
-Parameters: shared.FunctionParameters{
+```csharp
+var schema = BinaryData.FromString("""
+{
     "type": "object",
-    "properties": map[string]any{
-        "path": map[string]any{
-            "type":        "string",
-            "description": "The relative path...",
-        },
+    "properties": {
+        "path": {
+            "type": "string",
+            "description": "The relative path..."
+        }
     },
-    "required": []string{"path"},
-},
+    "required": ["path"]
+}
+""");
 ```
 
 ::right::
@@ -584,31 +570,31 @@ const schema = {
 layout: two-cols
 ---
 
-# Go: read_file
+# C#: read_file
 
-```go
-var ReadFileDefinition = ToolDefinition{
-    Name: "read_file",
-    Description: "Read the contents of a given " +
-        "relative file path. Use this when you " +
-        "want to see what's inside a file. " +
-        "Do not use this with directory names.",
-    Parameters: shared.FunctionParameters{...},
-    Function:   ReadFile,
-}
-
-func ReadFile(input json.RawMessage) (string, error) {
-    var ri ReadFileInput
-    if err := json.Unmarshal(input, &ri); err != nil {
-        return "", err
+```csharp
+static readonly ToolDefinition ReadFile = new(
+    "read_file",
+    "Read the contents of a given " +
+        "relative file path. Use this when " +
+        "you want to see what's inside a file." +
+        " Do not use this with directory names.",
+    BinaryData.FromString("""{ ... }"""),
+    async (input) =>
+    {
+        var filePath =
+            input.GetProperty("path").GetString()!;
+        try
+        {
+            return await
+                File.ReadAllTextAsync(filePath);
+        }
+        catch (Exception err)
+        {
+            return $"Error reading file: {err}";
+        }
     }
-
-    content, err := os.ReadFile(ri.Path)
-    if err != nil {
-        return "", err
-    }
-    return string(content), nil
-}
+);
 ```
 
 ::right::
@@ -648,29 +634,31 @@ const ReadFileDefinition = {
 layout: two-cols
 ---
 
-# Go: Agent Loop with Tools
+# C#: Agent Loop with Tools
 
-```go {3-5,10-12}
+```csharp {3-4,10-12,18}
 // After getting model response...
 
-if len(toolCalls) > 0 {
-    for _, tc := range toolCalls {
-        result := a.executeTool(
-            tc.ID,
-            tc.Function.Name,
-            tc.Function.Arguments,
-        )
-        conversation = append(conversation, result)
-    }
-    readUserInput = false
-    continue  // loop back without reading input
-}
+while (toolCalls.Count > 0)
+{
+    var assistantMsg =
+        new AssistantChatMessage(toolCalls);
+    if (!string.IsNullOrEmpty(content))
+        assistantMsg.Content.Add(
+            ChatMessageContentPart
+                .CreateTextPart(content));
+    messages.Add(assistantMsg);
 
-// No tool calls -- print text response
-if content != "" {
-    printThinkingAndResponse(content)
+    foreach (var tc in toolCalls)
+    {
+        var result = await ExecuteTool(tc);
+        messages.Add(ChatMessage
+            .CreateToolMessage(tc.Id, result));
+    }
+
+    (content, toolCalls) =
+        await CallModel(messages);
 }
-readUserInput = true
 ```
 
 ::right::
