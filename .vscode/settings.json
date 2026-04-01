@@ -4,6 +4,8 @@
     "**/obj": true,
     "**/node_modules": true,
     "**/bun.lock": true,
-    "**/.firecrawl": true
+    "**/.firecrawl": true,
+    "**/.env": true,
+    "**/CLAUDE.md": true,
   }
 }
