@@ -177,188 +177,166 @@ Trade-off: free-tier models may train on your inputs. Don't send anything sensit
 
 ---
 
-# Migration: Anthropic -> OpenAI
-
-<AutoScroll :sections="['', '--- Message types', '--- Tool definitions', '$bottom']">
+# Migration: Anthropic -> OpenAI (Go)
 
 ````md magic-move
-```csharp
-// ---- Program.cs (Anthropic SDK) ----
-
-using Anthropic;
-
-var client = new AnthropicClient();  // auto-reads ANTHROPIC_API_KEY
-
-// --- Message types ---
-
-var messages = new List<Message>();
-messages.Add(Message.CreateUserMessage(userInput));
-response.Content  // iterate for text / tool_use
-
-// --- Tool definitions ---
-
-new Tool {
-    Name = tool.Name,
-    Description = tool.Description,
-    InputSchema = JsonSchema.FromType<ReadFileInput>()  // reflection-based
+```go
+// main.go — Anthropic SDK (from the article)
+package main
+import (
+    anthropic "github.com/anthropics/anthropic-sdk-go"
+    "github.com/invopop/jsonschema"
+)
+// ... Logger, helpers (unchanged)
+type ToolDefinition struct {
+    Name, Description string
+    InputSchema       anthropic.ToolInputSchemaParam
+    Function          func(json.RawMessage) (string, error)
 }
-
-// --- Tool results ---
-
-new ToolResultContent(id, response)
-new ToolResultContent(id, err.Message, isError: true)
-messages.Add(Message.CreateUserMessage(toolResults))
-```
-
-```csharp
-// ---- Program.cs (OpenAI SDK via OpenRouter) ----
-
-using OpenAI.Chat;                                    // was Anthropic
-using System.ClientModel;                             // new: credential types
-
-var client = new ChatClient(                          // was AnthropicClient()
-    model,
-    new ApiKeyCredential(apiKey),
-    new OpenAI.OpenAIClientOptions {
-        Endpoint = new Uri("https://openrouter.ai/api/v1")
-    }
-);
-
-// --- Message types ---
-
-var messages = new List<Message>();
-messages.Add(Message.CreateUserMessage(userInput));
-response.Content  // iterate for text / tool_use
-
-// --- Tool definitions ---
-
-new Tool {
-    Name = tool.Name,
-    Description = tool.Description,
-    InputSchema = JsonSchema.FromType<ReadFileInput>()  // reflection-based
+// ... tool schemas via jsonschema.GenerateSchema[T]()
+// ... ReadFile, ListFiles, EditFile functions (unchanged)
+func main() {
+    client := anthropic.NewClient()
+    // ... more
 }
-
-// --- Tool results ---
-
-new ToolResultContent(id, response)
-new ToolResultContent(id, err.Message, isError: true)
-messages.Add(Message.CreateUserMessage(toolResults))
-```
-
-```csharp
-// ---- Program.cs (OpenAI SDK via OpenRouter) ----
-
-using OpenAI.Chat;
-using System.ClientModel;
-
-var client = new ChatClient(
-    model,
-    new ApiKeyCredential(apiKey),
-    new OpenAI.OpenAIClientOptions {
-        Endpoint = new Uri("https://openrouter.ai/api/v1")
-    }
-);
-
-// --- Message types ---
-
-var messages = new List<ChatMessage>();  // was List<Message>
-ChatMessage.CreateUserMessage(userInput);  // was Message.CreateUserMessage(...)
-messages.Add(msg);
-response.Value.Content    // was response.Content
-response.Value.ToolCalls  // was inline in Content
-
-// --- Tool definitions ---
-
-new Tool {
-    Name = tool.Name,
-    Description = tool.Description,
-    InputSchema = JsonSchema.FromType<ReadFileInput>()  // reflection-based
+type Agent struct { client *anthropic.Client /* ... */ }
+func (a *Agent) Run(ctx context.Context) error {
+    conversation := []anthropic.MessageParam{}
+    // ... build []anthropic.ToolUnionParam
+    //     via OfTool: &anthropic.ToolParam{Name, Desc, InputSchema}
+    // ... loop: anthropic.NewUserMessage(anthropic.NewTextBlock(input))
+    client.Messages.New(ctx, anthropic.MessageNewParams{
+        Model: anthropic.ModelClaude3_7SonnetLatest,
+        Messages: conversation, Tools: chatTools,
+    })
+    // ... more
 }
-
-// --- Tool results ---
-
-new ToolResultContent(id, response)
-new ToolResultContent(id, err.Message, isError: true)
-messages.Add(Message.CreateUserMessage(toolResults))
+// ... runStreaming via client.Messages.NewStreaming(ctx, params)
+// ... executeTool → anthropic.NewToolResultBlock(id, resp, false)
 ```
 
-```csharp
-// ---- Program.cs (OpenAI SDK via OpenRouter) ----
-
-using OpenAI.Chat;
-using System.ClientModel;
-
-var client = new ChatClient(
-    model,
-    new ApiKeyCredential(apiKey),
-    new OpenAI.OpenAIClientOptions {
-        Endpoint = new Uri("https://openrouter.ai/api/v1")
-    }
-);
-
-// --- Message types ---
-
-var messages = new List<ChatMessage>();
-ChatMessage.CreateUserMessage(userInput);
-messages.Add(msg);
-response.Value.Content
-response.Value.ToolCalls
-
-// --- Tool definitions ---
-
-ChatTool.CreateFunctionTool(  // was new Tool { ... }
-    t.Name, t.Description,
-    t.InputSchema             // BinaryData JSON schema
-);
-// Manual JSON schema as BinaryData  (was JsonSchema.FromType<T>() reflection)
-BinaryData.FromString("""{ "type": "object", ... }""");
-
-// --- Tool results ---
-
-new ToolResultContent(id, response)
-new ToolResultContent(id, err.Message, isError: true)
-messages.Add(Message.CreateUserMessage(toolResults))
+```go
+// main.go — OpenAI SDK via OpenRouter
+package main
+import (
+    openai "github.com/openai/openai-go"          // was anthropic
+    "github.com/openai/openai-go/option"           // new
+    "github.com/openai/openai-go/shared"           // new
+)
+// ... Logger, helpers (unchanged)
+type ToolDefinition struct {
+    Name, Description string
+    InputSchema       anthropic.ToolInputSchemaParam
+    Function          func(json.RawMessage) (string, error)
+}
+// ... tool schemas via jsonschema.GenerateSchema[T]()
+// ... ReadFile, ListFiles, EditFile functions (unchanged)
+func main() {
+    client := openai.NewClient(                    // was anthropic.NewClient()
+        option.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
+        option.WithBaseURL("https://openrouter.ai/api/v1"),
+    )
+    // ... more
+}
+type Agent struct { client *openai.Client /* ... */ }  // was *anthropic.Client
+func (a *Agent) Run(ctx context.Context) error {
+    conversation := []anthropic.MessageParam{}
+    // ... build []anthropic.ToolUnionParam
+    //     via OfTool: &anthropic.ToolParam{Name, Desc, InputSchema}
+    // ... loop: anthropic.NewUserMessage(anthropic.NewTextBlock(input))
+    client.Messages.New(ctx, anthropic.MessageNewParams{
+        Model: anthropic.ModelClaude3_7SonnetLatest,
+        Messages: conversation, Tools: chatTools,
+    })
+    // ... more
+}
+// ... runStreaming via client.Messages.NewStreaming(ctx, params)
+// ... executeTool → anthropic.NewToolResultBlock(id, resp, false)
 ```
 
-```csharp
-// ---- Program.cs (OpenAI SDK via OpenRouter) ----
+```go
+// main.go — OpenAI SDK via OpenRouter
+package main
+import (
+    openai "github.com/openai/openai-go"
+    "github.com/openai/openai-go/option"
+    "github.com/openai/openai-go/shared"
+)
+// ... Logger, helpers (unchanged)
+type ToolDefinition struct {
+    Name, Description string
+    Parameters        shared.FunctionParameters           // was InputSchema
+    Function          func(json.RawMessage) (string, error)
+}
+// ... tool schemas via shared.FunctionParameters{...}     was GenerateSchema
+// ... ReadFile, ListFiles, EditFile functions (unchanged)
+func main() {
+    client := openai.NewClient(
+        option.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
+        option.WithBaseURL("https://openrouter.ai/api/v1"),
+    )
+    // ... more
+}
+type Agent struct { client *openai.Client /* ... */ }
+func (a *Agent) Run(ctx context.Context) error {
+    conversation := []openai.ChatCompletionMessageParamUnion{}  // was anthropic
+    // ... build []openai.ChatCompletionToolParam                // was ToolUnionParam
+    //     via Function: shared.FunctionDefinitionParam{...}     // was OfTool
+    // ... loop: openai.UserMessage(input)                       // was NewUserMessage
+    client.Messages.New(ctx, anthropic.MessageNewParams{
+        Model: anthropic.ModelClaude3_7SonnetLatest,
+        Messages: conversation, Tools: chatTools,
+    })
+    // ... more
+}
+// ... runStreaming via client.Messages.NewStreaming(ctx, params)
+// ... executeTool → anthropic.NewToolResultBlock(id, resp, false)
+```
 
-using OpenAI.Chat;
-using System.ClientModel;
-
-var client = new ChatClient(
-    model,
-    new ApiKeyCredential(apiKey),
-    new OpenAI.OpenAIClientOptions {
-        Endpoint = new Uri("https://openrouter.ai/api/v1")
-    }
-);
-
-// --- Message types ---
-
-var messages = new List<ChatMessage>();
-ChatMessage.CreateUserMessage(userInput);
-messages.Add(msg);
-response.Value.Content
-response.Value.ToolCalls
-
-// --- Tool definitions ---
-
-ChatTool.CreateFunctionTool(
-    t.Name, t.Description,
-    t.InputSchema
-);
-BinaryData.FromString("""{ "type": "object", ... }""");
-
-// --- Tool results ---
-
-ChatMessage.CreateToolMessage(tc.Id, result)  // was ToolResultContent(id, response)
-// errors are just strings now   (was isError: true flag)
-messages.Add(ChatMessage.CreateToolMessage(tc.Id, result))  // was CreateUserMessage
+```go
+// main.go — OpenAI SDK via OpenRouter
+package main
+import (
+    openai "github.com/openai/openai-go"
+    "github.com/openai/openai-go/option"
+    "github.com/openai/openai-go/shared"
+)
+// ... Logger, helpers (unchanged)
+type ToolDefinition struct {
+    Name, Description string
+    Parameters        shared.FunctionParameters
+    Function          func(json.RawMessage) (string, error)
+}
+// ... tool schemas via shared.FunctionParameters{...}
+// ... ReadFile, ListFiles, EditFile functions (unchanged)
+func main() {
+    client := openai.NewClient(
+        option.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
+        option.WithBaseURL("https://openrouter.ai/api/v1"),
+    )
+    // ... more
+}
+type Agent struct { client *openai.Client /* ... */ }
+func (a *Agent) Run(ctx context.Context) error {
+    conversation := []openai.ChatCompletionMessageParamUnion{}
+    // ... build []openai.ChatCompletionToolParam
+    //     via Function: shared.FunctionDefinitionParam{...}
+    // ... loop: openai.UserMessage(input)
+    client.Chat.Completions.New(ctx,                       // was Messages.New
+        openai.ChatCompletionNewParams{                     // was anthropic.MessageNewParams
+            Model: "qwen/qwen3.6-plus-preview:free",       // was ModelClaude3_7SonnetLatest
+            Messages: conversation, Tools: chatTools,
+        })
+    // ... more
+}
+// ... runStreaming via client.Chat.Completions.NewStreaming // was Messages
+// ... executeTool → openai.ToolMessage(resp, id)           // was NewToolResultBlock
 ```
 ````
 
-</AutoScroll>
+<style>
+:deep(pre) { font-size: 0.45em !important; line-height: 1.3 !important; }
+</style>
 
 ---
 layout: two-cols
@@ -373,8 +351,9 @@ using OpenAI.Chat;
 DotNetEnv.Env.Load("../.env");
 
 var model = "qwen/qwen3.6-plus-preview:free";
-var apiKey = Environment.GetEnvironmentVariable(
-    "OPENROUTER_API_KEY") ?? "";
+var apiKey = Environment
+    .GetEnvironmentVariable(
+        "OPENROUTER_API_KEY") ?? "";
 var client = new ChatClient(
     model,
     new ApiKeyCredential(apiKey),
@@ -387,7 +366,8 @@ var client = new ChatClient(
 // Build chat tools from ToolDefinitions
 var chatTools = ToolDefinitions.Tools
     .Select(t => ChatTool.CreateFunctionTool(
-        t.Name, t.Description, t.InputSchema))
+        t.Name, t.Description,
+        t.InputSchema))
     .ToList();
 ```
 
@@ -398,12 +378,14 @@ var chatTools = ToolDefinitions.Tools
 ```ts
 import OpenAI from "openai";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: "https://openrouter.ai/api/v1",
-});
+// (no .env loader needed with Bun)
 
 const model = "qwen/qwen3.6-plus-preview:free";
+const client = new OpenAI({
+    apiKey: process.env.OPENROUTER_API_KEY,
+    baseURL:
+        "https://openrouter.ai/api/v1",
+});
 
 
 
@@ -411,22 +393,21 @@ const model = "qwen/qwen3.6-plus-preview:free";
 // Tools are imported from tools.ts
 import { tools } from "./tools";
 
-const chatTools: OpenAI.ChatCompletionTool[] =
-  tools.map((t) => ({
-    type: "function" as const,
-    function: {
-      name: t.name,
-      description: t.description,
-      parameters: t.inputSchema,
-    },
-  }));
-
-runAgent().catch(console.error);
+const chatTools:
+    OpenAI.ChatCompletionTool[] =
+    tools.map((t) => ({
+        type: "function" as const,
+        function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.inputSchema,
+        },
+    }));
 ```
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.6em; line-height: 1.35;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -439,7 +420,8 @@ layout: two-cols
 ```csharp {1-2,5,9-10,14}
 var messages = new List<ChatMessage>();
 
-Console.WriteLine("Chat with Agent (Ctrl+C to quit)");
+Console.WriteLine(
+    "Chat with Agent (Ctrl+C to quit)");
 
 while (true)
 {
@@ -458,8 +440,8 @@ while (true)
     if (!string.IsNullOrEmpty(content))
     {
         PrintThinkingAndResponse(content);
-        messages.Add(
-            ChatMessage.CreateAssistantMessage(content));
+        messages.Add(ChatMessage
+            .CreateAssistantMessage(content));
     }
 }
 ```
@@ -473,13 +455,15 @@ async function runAgent() {
     const messages:
         OpenAI.ChatCompletionMessageParam[] = [];
 
-    console.log("Chat with Agent (Ctrl+C to quit)");
+    console.log(
+        "Chat with Agent (Ctrl+C to quit)");
 
     while (true) {
         const userInput = await askUser("User: ");
         if (!userInput) break;
 
-        messages.push({ role: "user", content: userInput });
+        messages.push(
+            { role: "user", content: userInput });
 
         let { content, toolCalls } =
             await callModel(messages);
@@ -488,7 +472,8 @@ async function runAgent() {
 
         if (content) {
             printThinkingAndResponse(content);
-            messages.push({ role: "assistant", content });
+            messages.push(
+                { role: "assistant", content });
         }
     }
 }
@@ -496,7 +481,7 @@ async function runAgent() {
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.6em; line-height: 1.35;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -562,7 +547,7 @@ const schema = {
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.65em; line-height: 1.35;
+  font-size: 0.55em; line-height: 1.3;
 }
 </style>
 
@@ -626,7 +611,7 @@ const ReadFileDefinition = {
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.6em; line-height: 1.35;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -636,7 +621,7 @@ layout: two-cols
 
 # C#: Agent Loop with Tools
 
-```csharp {3-4,10-12,18}
+```csharp {3-4,12-14,20}
 // After getting model response...
 
 while (toolCalls.Count > 0)
@@ -694,7 +679,7 @@ while (toolCalls.length > 0) {
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.55em; line-height: 1.35;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -702,33 +687,32 @@ while (toolCalls.length > 0) {
 layout: two-cols
 ---
 
-# Go: list_files
+# C#: list_files
 
-```go
-func ListFiles(input json.RawMessage) (string, error) {
-    var li ListFilesInput
-    json.Unmarshal(input, &li)
+```csharp
+async (input) =>
+{
+    var dir = input.TryGetProperty(
+        "path", out var p)
+        ? p.GetString() ?? "." : ".";
 
-    dir := "."
-    if li.Path != "" { dir = li.Path }
-
-    var files []string
-    filepath.Walk(dir, func(
-        p string, info os.FileInfo, err error,
-    ) error {
-        relPath, _ := filepath.Rel(dir, p)
-        if relPath != "." {
-            if info.IsDir() {
-                files = append(files, relPath+"/")
-            } else {
-                files = append(files, relPath)
-            }
-        }
-        return nil
-    })
-
-    result, _ := json.Marshal(files)
-    return string(result), nil
+    try
+    {
+        var entries = Directory
+            .GetFileSystemEntries(dir)
+            .Select(e =>
+            {
+                var name = Path.GetFileName(e);
+                return Directory.Exists(e)
+                    ? name + "/" : name;
+            })
+            .ToArray();
+        return JsonSerializer.Serialize(entries);
+    }
+    catch (Exception err)
+    {
+        return $"Error listing files: {err}";
+    }
 }
 ```
 
@@ -761,7 +745,7 @@ async function listFiles(input: unknown) {
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.6em; line-height: 1.35;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -769,35 +753,48 @@ async function listFiles(input: unknown) {
 layout: two-cols
 ---
 
-# Go: edit_file
+# C#: edit_file
 
-```go
-func EditFile(input json.RawMessage) (string, error) {
-    var ei EditFileInput
-    json.Unmarshal(input, &ei)
+```csharp
+async (input) =>
+{
+    var filePath =
+        input.GetProperty("path").GetString()!;
+    var oldStr =
+        input.GetProperty("old_str").GetString()!;
+    var newStr =
+        input.GetProperty("new_str").GetString()!;
 
-    if ei.Path == "" || ei.OldStr == ei.NewStr {
-        return "", fmt.Errorf("invalid input")
-    }
+    if (string.IsNullOrEmpty(filePath)
+        || oldStr == newStr)
+        return "Error: invalid input parameters";
 
-    content, err := os.ReadFile(ei.Path)
-    if err != nil {
-        if os.IsNotExist(err) && ei.OldStr == "" {
-            return createNewFile(ei.Path, ei.NewStr)
+    if (!File.Exists(filePath))
+    {
+        if (oldStr == "")
+        {
+            var dir =
+                Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
+            await File.WriteAllTextAsync(
+                filePath, newStr);
+            return $"Created file {filePath}";
         }
-        return "", err
+        return "Error: file does not exist";
     }
 
-    oldContent := string(content)
-    newContent := strings.Replace(
-        oldContent, ei.OldStr, ei.NewStr, -1)
+    var content =
+        await File.ReadAllTextAsync(filePath);
+    var newContent =
+        content.Replace(oldStr, newStr);
 
-    if oldContent == newContent && ei.OldStr != "" {
-        return "", fmt.Errorf("old_str not found")
-    }
+    if (content == newContent && oldStr != "")
+        return "Error: old_str not found";
 
-    os.WriteFile(ei.Path, []byte(newContent), 0644)
-    return "OK", nil
+    await File.WriteAllTextAsync(
+        filePath, newContent);
+    return "OK";
 }
 ```
 
@@ -811,15 +808,18 @@ async function editFile(input: unknown) {
         input as { path: string;
             old_str: string; new_str: string };
 
+
     if (!filePath || old_str === new_str)
         return "Error: invalid input parameters";
 
     if (!existsSync(filePath)) {
         if (old_str === "") {
+
             const dir = path.dirname(filePath);
             if (dir !== ".")
                 mkdirSync(dir, { recursive: true });
-            writeFileSync(filePath, new_str, "utf-8");
+            writeFileSync(
+                filePath, new_str, "utf-8");
             return `Created file ${filePath}`;
         }
         return "Error: file does not exist";
@@ -833,14 +833,15 @@ async function editFile(input: unknown) {
     if (content === newContent && old_str !== "")
         return "Error: old_str not found in file";
 
-    await writeFile(filePath, newContent, "utf-8");
+    await writeFile(
+        filePath, newContent, "utf-8");
     return "OK";
 }
 ```
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.55em; line-height: 1.35;
+  font-size: 0.45em; line-height: 1.3;
 }
 </style>
 
@@ -848,36 +849,34 @@ async function editFile(input: unknown) {
 layout: two-cols
 ---
 
-# Go: executeTool
+# C#: ExecuteTool
 
-```go
-func (a *Agent) executeTool(
-    id, name, argsJSON string,
-) openai.ChatCompletionMessageParamUnion {
-    var toolDef ToolDefinition
-    var found bool
-    for _, t := range a.tools {
-        if t.Name == name {
-            toolDef = t
-            found = true
-            break
-        }
-    }
-    if !found {
-        return openai.ToolMessage(
-            "tool not found", id)
-    }
+```csharp
+async Task<string> ExecuteTool(
+    ChatToolCall toolCall)
+{
 
-    logger.Tool(fmt.Sprintf(
-        "%s(%s)", name, argsJSON))
+    var toolDef = ToolDefinitions.Tools
+        .FirstOrDefault(t =>
+            t.Name == toolCall.FunctionName);
 
-    response, err := toolDef.Function(
-        json.RawMessage(argsJSON))
-    if err != nil {
-        return openai.ToolMessage(
-            fmt.Sprintf("Error: %s", err), id)
+    if (toolDef is null)
+        return "tool not found";
+
+    var input = JsonDocument.Parse(
+        toolCall.FunctionArguments).RootElement;
+    logger.Tool(
+        $"{toolCall.FunctionName}" +
+        $"({toolCall.FunctionArguments})");
+
+    try
+    {
+        return await toolDef.Function(input);
     }
-    return openai.ToolMessage(response, id)
+    catch (Exception err)
+    {
+        return $"Error: {err}";
+    }
 }
 ```
 
@@ -916,7 +915,7 @@ async function executeTool(
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.6em; line-height: 1.35;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -940,24 +939,26 @@ Extra features beyond the original article:
 layout: two-cols
 ---
 
-# Go: AGENTS.md
+# C#: AGENTS.md
 
-```go
-func (a *Agent) Run(ctx context.Context) error {
-    conversation :=
-        []openai.ChatCompletionMessageParamUnion{}
+```csharp
+var messages = new List<ChatMessage>();
 
-    // Load AGENTS.md as system prompt
-    if content, err := os.ReadFile("../AGENTS.md");
-        err == nil &&
-        len(strings.TrimSpace(
-            string(content))) > 0 {
-        conversation = append(conversation,
-            openai.SystemMessage(string(content)))
-    }
-
-    // ... rest of agent loop
+// Load AGENTS.md as system prompt
+try
+{
+    var agentsMd =
+        await File.ReadAllTextAsync("../AGENTS.md");
+    if (!string.IsNullOrWhiteSpace(agentsMd))
+        messages.Add(
+            ChatMessage
+                .CreateSystemMessage(agentsMd));
 }
+catch { }
+
+
+
+// ... rest of agent loop
 ```
 
 ::right::
@@ -965,29 +966,29 @@ func (a *Agent) Run(ctx context.Context) error {
 # TS: AGENTS.md
 
 ```ts
-async function runAgent() {
-    const messages:
-        OpenAI.ChatCompletionMessageParam[] = [];
+const messages:
+    OpenAI.ChatCompletionMessageParam[] = [];
 
-    // Load AGENTS.md as system prompt
-    try {
-        const agentsMd =
-            await Bun.file("../AGENTS.md").text();
-        if (agentsMd.trim()) {
-            messages.push({
-                role: "system",
-                content: agentsMd,
-            });
-        }
-    } catch {}
+// Load AGENTS.md as system prompt
+try {
+    const agentsMd =
+        await Bun.file("../AGENTS.md").text();
+    if (agentsMd.trim()) {
+        messages.push({
+            role: "system",
+            content: agentsMd,
+        });
+    }
+} catch {}
 
-    // ... rest of agent loop
-}
+
+
+// ... rest of agent loop
 ```
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.65em; line-height: 1.35;
+  font-size: 0.55em; line-height: 1.3;
 }
 </style>
 
@@ -995,29 +996,28 @@ async function runAgent() {
 layout: two-cols
 ---
 
-# Go: Think Tags
+# C#: Think Tags
 
-```go
-func printThinkingAndResponse(content string) {
-    thinkStart := strings.Index(
-        content, "<think>")
-    thinkEnd := strings.Index(
-        content, "</think>")
+```csharp
+void PrintThinkingAndResponse(string text)
+{
+    var match = Regex.Match(text,
+        @"^<think>([\s\S]*?)</think>([\s\S]*)$");
 
-    if thinkStart != -1 && thinkEnd != -1 &&
-        thinkEnd > thinkStart {
-        thinking := strings.TrimSpace(
-            content[thinkStart+7 : thinkEnd])
-        answer := strings.TrimSpace(
-            content[thinkEnd+8:])
-        if thinking != "" {
-            logger.Thinking(thinking)
-        }
-        if answer != "" {
-            logger.Agent(answer)
-        }
-    } else {
-        logger.Agent(content)
+    if (match.Success)
+    {
+        var thinking =
+            match.Groups[1].Value.Trim();
+        var answer =
+            match.Groups[2].Value.Trim();
+        if (thinking.Length > 0)
+            logger.Thinking(thinking);
+        if (answer.Length > 0)
+            logger.Agent(answer);
+    }
+    else
+    {
+        logger.Agent(text);
     }
 }
 ```
@@ -1037,6 +1037,7 @@ function printThinkingAndResponse(
     if (thinkMatch) {
         const thinking = thinkMatch[1].trim();
         const answer = thinkMatch[2].trim();
+
         if (thinking)
             logger.thinking(thinking);
         if (answer)
@@ -1049,7 +1050,7 @@ function printThinkingAndResponse(
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.65em; line-height: 1.35;
+  font-size: 0.55em; line-height: 1.3;
 }
 </style>
 
@@ -1057,38 +1058,37 @@ function printThinkingAndResponse(
 layout: two-cols
 ---
 
-# Go: Streaming
+# C#: Streaming
 
-```go {6-7,9-11,14}
-func (a *Agent) runStreaming(ctx context.Context,
-    params openai.ChatCompletionNewParams,
-    stopSpinner func(),
-) (string, []openai.ChatCompletionMessageToolCall,
-    error) {
-    stream := a.client.Chat.Completions
-        .NewStreaming(ctx, params)
+```csharp {8-9,11-14,16}
+async Task<(string content,
+    List<ChatToolCall> toolCalls)>
+    CallModelStreaming(
+    List<ChatMessage> msgs,
+    ChatCompletionOptions options,
+    Action stopSpinner)
+{
+    var stream = client
+        .CompleteChatStreamingAsync(msgs, options);
 
-    var contentBuilder strings.Builder
-    toolCallMap :=
-        map[int]*openai.ChatCompletionMessageToolCall{}
-    first := true
+    var content = "";
+    var toolCallMap = new Dictionary<int,
+        (string id, string name, string args)>();
+    var first = true;
 
-    for stream.Next() {
-        if first {
-            stopSpinner()
-            first = false
-        }
-        chunk := stream.Current()
-        delta := chunk.Choices[0].Delta
+    await foreach (var update in stream)
+    {
+        if (first)
+        { stopSpinner(); first = false; }
 
-        if delta.Content != "" {
-            contentBuilder.WriteString(delta.Content)
-        }
-        for _, tc := range delta.ToolCalls {
-            // accumulate by index...
+        foreach (var part in update.ContentUpdate)
+            content += part.Text;
+        foreach (var tc in update.ToolCallUpdates)
+        {   // accumulate by index...
         }
     }
-    return contentBuilder.String(), toolCalls, nil
+    if (first) stopSpinner();
+    return (content, toolCalls);
 }
 ```
 
@@ -1115,8 +1115,7 @@ async function callModelStreaming(
 
     for await (const chunk of stream) {
         if (first) {
-            stopSpinner();
-            first = false;
+            stopSpinner(); first = false;
         }
         const delta = chunk.choices[0]?.delta;
 
@@ -1126,13 +1125,14 @@ async function callModelStreaming(
             // accumulate by index...
         }
     }
+
     return { content, toolCalls };
 }
 ```
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.45em; line-height: 1.3;
 }
 </style>
 
@@ -1140,35 +1140,36 @@ async function callModelStreaming(
 layout: two-cols
 ---
 
-# Go: Spinner
+# C#: Spinner
 
-```go
-func (l *Logger) StartSpinner() func() {
-    stop := make(chan struct{})
-    go func() {
-        frames := []string{
-            "⠋","⠙","⠹","⠸",
-            "⠼","⠴","⠦","⠧","⠇","⠏",
+```csharp
+public Action StartSpinner()
+{
+    var frames = new[] {
+        "⠋","⠙","⠹","⠸",
+        "⠼","⠴","⠦","⠧","⠇","⠏" };
+    var i = 0;
+    var cts = new CancellationTokenSource();
+    _ = Task.Run(async () =>
+    {
+        while (!cts.Token.IsCancellationRequested)
+        {
+            Console.Write(
+                $"\r{frames[i++ % frames.Length]}");
+            try {
+                await Task.Delay(80, cts.Token);
+            } catch { break; }
         }
-        i := 0
-        for {
-            select {
-            case <-stop:
-                fmt.Print("\r\x1b[K")
-                return
-            default:
-                fmt.Printf("\r%s",
-                    frames[i%len(frames)])
-                i++
-                time.Sleep(80 * time.Millisecond)
-            }
-        }
-    }()
-    return func() { close(stop) }
+    });
+    return () =>
+    {
+        cts.Cancel();
+        Console.Write("\r\x1b[K");
+    };
 }
 ```
 
-Uses a **goroutine + channel** for concurrent animation.
+Uses **Task.Run + CancellationToken** for concurrent animation.
 
 ::right::
 
@@ -1186,6 +1187,9 @@ function startSpinner(): () => void {
             `\r${frames[i++ % frames.length]}`,
         );
     }, 80);
+
+
+
     return () => {
         clearInterval(id);
         process.stdout.write("\r\x1b[K");
@@ -1197,7 +1201,7 @@ Uses **setInterval** -- returns a cleanup function.
 
 <style>
 .two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.65em; line-height: 1.35;
+  font-size: 0.55em; line-height: 1.3;
 }
 </style>
 
@@ -1211,7 +1215,7 @@ layout: center
 
 **Core pattern:** LLM + Loop + Tools
 
-**~514 lines** (Go) / **~386 lines** (TS) for a complete code-editing agent
+**~390 lines** (C#) / **~386 lines** (TS) for a complete code-editing agent
 
 **Migration:** Anthropic SDK to OpenAI SDK is mostly type renaming
 
