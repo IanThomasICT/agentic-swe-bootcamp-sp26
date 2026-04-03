@@ -1,8 +1,13 @@
 /* Ensure two-cols code blocks fit without overflow */
-.slidev-layout.two-cols .col-left pre,
-.slidev-layout.two-cols .col-right pre {
+.slidev-layout.two-columns .col-left pre,
+.slidev-layout.two-columns .col-right pre {
   max-height: 420px;
   overflow-y: auto;
+}
+
+/* Gap between left and right columns */
+.slidev-layout.two-columns {
+  column-gap: 2rem;
 }
 
 /* --- Highlighted lines in walkthrough slides --- */

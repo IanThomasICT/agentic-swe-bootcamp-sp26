@@ -349,25 +349,15 @@ using System.ClientModel;
 using OpenAI.Chat;
 
 DotNetEnv.Env.Load("../.env");
-
 var model = "qwen/qwen3.6-plus-preview:free";
-var apiKey = Environment
-    .GetEnvironmentVariable(
-        "OPENROUTER_API_KEY") ?? "";
-var client = new ChatClient(
-    model,
-    new ApiKeyCredential(apiKey),
+var apiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY") ?? "";
+var client = new ChatClient(model, new ApiKeyCredential(apiKey),
     new OpenAI.OpenAIClientOptions {
-        Endpoint = new Uri(
-            "https://openrouter.ai/api/v1")
-    }
-);
+        Endpoint = new Uri("https://openrouter.ai/api/v1")
+    });
 
-// Build chat tools from ToolDefinitions
 var chatTools = ToolDefinitions.Tools
-    .Select(t => ChatTool.CreateFunctionTool(
-        t.Name, t.Description,
-        t.InputSchema))
+    .Select(t => ChatTool.CreateFunctionTool(t.Name, t.Description, t.InputSchema))
     .ToList();
 ```
 
@@ -377,37 +367,25 @@ var chatTools = ToolDefinitions.Tools
 
 ```ts
 import OpenAI from "openai";
-
-// (no .env loader needed with Bun)
+import { tools } from "./tools";
 
 const model = "qwen/qwen3.6-plus-preview:free";
 const client = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
-    baseURL:
-        "https://openrouter.ai/api/v1",
+    baseURL: "https://openrouter.ai/api/v1",
 });
 
-
-
-
-// Tools are imported from tools.ts
-import { tools } from "./tools";
-
-const chatTools:
-    OpenAI.ChatCompletionTool[] =
+const chatTools: OpenAI.ChatCompletionTool[] =
     tools.map((t) => ({
         type: "function" as const,
-        function: {
-            name: t.name,
-            description: t.description,
-            parameters: t.inputSchema,
-        },
+        function: { name: t.name, description: t.description,
+                    parameters: t.inputSchema },
     }));
 ```
 
 <style>
-.two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.5em; line-height: 1.3;
+:deep(.col-left pre), :deep(.col-right pre) {
+  font-size: 0.55em; line-height: 1.3;
 }
 </style>
 
@@ -417,32 +395,21 @@ layout: two-cols
 
 # C#: Chat Loop
 
-```csharp {1-2,5,9-10,14}
+```csharp
 var messages = new List<ChatMessage>();
-
-Console.WriteLine(
-    "Chat with Agent (Ctrl+C to quit)");
 
 while (true)
 {
-    logger.User();
     var userInput = Console.ReadLine();
     if (string.IsNullOrEmpty(userInput)) break;
 
-    messages.Add(
-        ChatMessage.CreateUserMessage(userInput));
+    messages.Add(ChatMessage.CreateUserMessage(userInput));
+    var (content, toolCalls) = await CallModel(messages);
 
-    var (content, toolCalls) =
-        await CallModel(messages);
+    // ... handle tool calls (next slide)
 
-    // ... handle tool calls or print response
-
-    if (!string.IsNullOrEmpty(content))
-    {
-        PrintThinkingAndResponse(content);
-        messages.Add(ChatMessage
-            .CreateAssistantMessage(content));
-    }
+    PrintThinkingAndResponse(content);
+    messages.Add(ChatMessage.CreateAssistantMessage(content));
 }
 ```
 
@@ -450,38 +417,28 @@ while (true)
 
 # TS: Chat Loop
 
-```ts {2-3,6,11-12,17}
+```ts
 async function runAgent() {
-    const messages:
-        OpenAI.ChatCompletionMessageParam[] = [];
-
-    console.log(
-        "Chat with Agent (Ctrl+C to quit)");
+    const messages: OpenAI.ChatCompletionMessageParam[] = [];
 
     while (true) {
         const userInput = await askUser("User: ");
         if (!userInput) break;
 
-        messages.push(
-            { role: "user", content: userInput });
+        messages.push({ role: "user", content: userInput });
+        let { content, toolCalls } = await callModel(messages);
 
-        let { content, toolCalls } =
-            await callModel(messages);
+        // ... handle tool calls (next slide)
 
-        // ... handle tool calls or print response
-
-        if (content) {
-            printThinkingAndResponse(content);
-            messages.push(
-                { role: "assistant", content });
-        }
+        printThinkingAndResponse(content);
+        messages.push({ role: "assistant", content });
     }
 }
 ```
 
 <style>
-.two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.5em; line-height: 1.3;
+:deep(.col-left pre), :deep(.col-right pre) {
+  font-size: 0.55em; line-height: 1.3;
 }
 </style>
 
@@ -546,7 +503,7 @@ const schema = {
 ```
 
 <style>
-.two-cols .col-left pre, .two-cols .col-right pre {
+:deep(.col-left pre), :deep(.col-right pre) {
   font-size: 0.55em; line-height: 1.3;
 }
 </style>
@@ -560,22 +517,13 @@ layout: two-cols
 ```csharp
 static readonly ToolDefinition ReadFile = new(
     "read_file",
-    "Read the contents of a given " +
-        "relative file path. Use this when " +
-        "you want to see what's inside a file." +
-        " Do not use this with directory names.",
+    "Read the contents of a given relative file path.",
     BinaryData.FromString("""{ ... }"""),
-    async (input) =>
-    {
-        var filePath =
-            input.GetProperty("path").GetString()!;
-        try
-        {
-            return await
-                File.ReadAllTextAsync(filePath);
-        }
-        catch (Exception err)
-        {
+    async (input) => {
+        var filePath = input.GetProperty("path").GetString()!;
+        try {
+            return await File.ReadAllTextAsync(filePath);
+        } catch (Exception err) {
             return $"Error reading file: {err}";
         }
     }
@@ -589,19 +537,12 @@ static readonly ToolDefinition ReadFile = new(
 ```ts
 const ReadFileDefinition = {
     name: "read_file",
-    description:
-        "Read the contents of a given " +
-        "relative file path. Use this when you " +
-        "want to see what's inside a file. " +
-        "Do not use this with directory names.",
+    description: "Read the contents of a given relative file path.",
     inputSchema: {},
     function: async (input: unknown) => {
-        const { path: filePath } =
-            input as { path: string };
+        const { path: filePath } = input as { path: string };
         try {
-            const content =
-                await readFile(filePath, "utf-8");
-            return content;
+            return await readFile(filePath, "utf-8");
         } catch (err) {
             return `Error reading file: ${err}`;
         }
@@ -610,8 +551,8 @@ const ReadFileDefinition = {
 ```
 
 <style>
-.two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.5em; line-height: 1.3;
+:deep(.col-left pre), :deep(.col-right pre) {
+  font-size: 0.6em; line-height: 1.3;
 }
 </style>
 
@@ -621,18 +562,13 @@ layout: two-cols
 
 # C#: Agent Loop with Tools
 
-```csharp {3-4,12-14,20}
+```csharp
 // After getting model response...
 
 while (toolCalls.Count > 0)
 {
-    var assistantMsg =
-        new AssistantChatMessage(toolCalls);
-    if (!string.IsNullOrEmpty(content))
-        assistantMsg.Content.Add(
-            ChatMessageContentPart
-                .CreateTextPart(content));
-    messages.Add(assistantMsg);
+    messages.Add(
+        new AssistantChatMessage(toolCalls));
 
     foreach (var tc in toolCalls)
     {
@@ -650,13 +586,12 @@ while (toolCalls.Count > 0)
 
 # TS: Agent Loop with Tools
 
-```ts {3-4,14-16,23}
+```ts
 // After getting model response...
 
 while (toolCalls.length > 0) {
     messages.push({
         role: "assistant",
-        content: content || null,
         tool_calls: toolCalls.map((tc) => ({
             id: tc.id,
             type: "function" as const,
@@ -666,20 +601,19 @@ while (toolCalls.length > 0) {
 
     for (const tc of toolCalls) {
         const result = await executeTool(tc);
-        messages.push({
-            role: "tool",
+        messages.push({ role: "tool",
             tool_call_id: tc.id,
-            content: result,
-        });
+            content: result });
     }
 
-    ({ content, toolCalls } = await callModel(messages));
+    ({ content, toolCalls } =
+        await callModel(messages));
 }
 ```
 
 <style>
-.two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.5em; line-height: 1.3;
+:deep(.col-left pre), :deep(.col-right pre) {
+  font-size: 0.55em; line-height: 1.3;
 }
 </style>
 
@@ -690,27 +624,16 @@ layout: two-cols
 # C#: list_files
 
 ```csharp
-async (input) =>
-{
-    var dir = input.TryGetProperty(
-        "path", out var p)
-        ? p.GetString() ?? "." : ".";
-
-    try
-    {
-        var entries = Directory
-            .GetFileSystemEntries(dir)
-            .Select(e =>
-            {
+async (input) => {
+    var dir = input.TryGetProperty("path", out var p) ? p.GetString() ?? "." : ".";
+    try {
+        var entries = Directory.GetFileSystemEntries(dir)
+            .Select(e => {
                 var name = Path.GetFileName(e);
-                return Directory.Exists(e)
-                    ? name + "/" : name;
-            })
-            .ToArray();
+                return Directory.Exists(e) ? name + "/" : name;
+            }).ToArray();
         return JsonSerializer.Serialize(entries);
-    }
-    catch (Exception err)
-    {
+    } catch (Exception err) {
         return $"Error listing files: {err}";
     }
 }
@@ -722,21 +645,10 @@ async (input) =>
 
 ```ts
 async function listFiles(input: unknown) {
-    const { path: dir } =
-        input as { path?: string };
-    const targetDir = dir || ".";
-
+    const { path: dir } = input as { path?: string };
     try {
-        const files = await readdir(
-            targetDir,
-            { withFileTypes: true },
-        );
-        const result = files.map((f) =>
-            f.isDirectory()
-                ? f.name + "/"
-                : f.name
-        );
-        return JSON.stringify(result);
+        const files = await readdir(dir || ".", { withFileTypes: true });
+        return JSON.stringify(files.map(f => f.isDirectory() ? f.name + "/" : f.name));
     } catch (err) {
         return `Error listing files: ${err}`;
     }
@@ -744,8 +656,8 @@ async function listFiles(input: unknown) {
 ```
 
 <style>
-.two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.5em; line-height: 1.3;
+:deep(.col-left pre), :deep(.col-right pre) {
+  font-size: 0.6em; line-height: 1.3;
 }
 </style>
 
@@ -756,44 +668,26 @@ layout: two-cols
 # C#: edit_file
 
 ```csharp
-async (input) =>
-{
-    var filePath =
-        input.GetProperty("path").GetString()!;
-    var oldStr =
-        input.GetProperty("old_str").GetString()!;
-    var newStr =
-        input.GetProperty("new_str").GetString()!;
-
-    if (string.IsNullOrEmpty(filePath)
-        || oldStr == newStr)
+async (input) => {
+    var filePath = input.GetProperty("path").GetString()!;
+    var oldStr   = input.GetProperty("old_str").GetString()!;
+    var newStr   = input.GetProperty("new_str").GetString()!;
+    if (string.IsNullOrEmpty(filePath) || oldStr == newStr)
         return "Error: invalid input parameters";
 
-    if (!File.Exists(filePath))
-    {
-        if (oldStr == "")
-        {
-            var dir =
-                Path.GetDirectoryName(filePath);
-            if (!string.IsNullOrEmpty(dir))
-                Directory.CreateDirectory(dir);
-            await File.WriteAllTextAsync(
-                filePath, newStr);
+    if (!File.Exists(filePath)) {
+        if (oldStr == "") {
+            var dir = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            await File.WriteAllTextAsync(filePath, newStr);
             return $"Created file {filePath}";
         }
         return "Error: file does not exist";
     }
-
-    var content =
-        await File.ReadAllTextAsync(filePath);
-    var newContent =
-        content.Replace(oldStr, newStr);
-
-    if (content == newContent && oldStr != "")
-        return "Error: old_str not found";
-
-    await File.WriteAllTextAsync(
-        filePath, newContent);
+    var content = await File.ReadAllTextAsync(filePath);
+    var newContent = content.Replace(oldStr, newStr);
+    if (content == newContent && oldStr != "") return "Error: old_str not found";
+    await File.WriteAllTextAsync(filePath, newContent);
     return "OK";
 }
 ```
@@ -805,43 +699,30 @@ async (input) =>
 ```ts
 async function editFile(input: unknown) {
     const { path: filePath, old_str, new_str } =
-        input as { path: string;
-            old_str: string; new_str: string };
-
-
+        input as { path: string; old_str: string; new_str: string };
     if (!filePath || old_str === new_str)
         return "Error: invalid input parameters";
 
     if (!existsSync(filePath)) {
         if (old_str === "") {
-
             const dir = path.dirname(filePath);
-            if (dir !== ".")
-                mkdirSync(dir, { recursive: true });
-            writeFileSync(
-                filePath, new_str, "utf-8");
+            if (dir !== ".") mkdirSync(dir, { recursive: true });
+            writeFileSync(filePath, new_str, "utf-8");
             return `Created file ${filePath}`;
         }
         return "Error: file does not exist";
     }
-
-    const content =
-        await readFile(filePath, "utf-8");
-    const newContent =
-        content.replace(old_str, new_str);
-
-    if (content === newContent && old_str !== "")
-        return "Error: old_str not found in file";
-
-    await writeFile(
-        filePath, newContent, "utf-8");
+    const content = await readFile(filePath, "utf-8");
+    const newContent = content.replace(old_str, new_str);
+    if (content === newContent && old_str !== "") return "Error: old_str not found";
+    await writeFile(filePath, newContent, "utf-8");
     return "OK";
 }
 ```
 
 <style>
-.two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.45em; line-height: 1.3;
+:deep(.col-left pre), :deep(.col-right pre) {
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -852,29 +733,16 @@ layout: two-cols
 # C#: ExecuteTool
 
 ```csharp
-async Task<string> ExecuteTool(
-    ChatToolCall toolCall)
-{
-
+async Task<string> ExecuteTool(ChatToolCall toolCall) {
     var toolDef = ToolDefinitions.Tools
-        .FirstOrDefault(t =>
-            t.Name == toolCall.FunctionName);
+        .FirstOrDefault(t => t.Name == toolCall.FunctionName);
+    if (toolDef is null) return "tool not found";
 
-    if (toolDef is null)
-        return "tool not found";
-
-    var input = JsonDocument.Parse(
-        toolCall.FunctionArguments).RootElement;
-    logger.Tool(
-        $"{toolCall.FunctionName}" +
-        $"({toolCall.FunctionArguments})");
-
-    try
-    {
+    var input = JsonDocument.Parse(toolCall.FunctionArguments).RootElement;
+    logger.Tool($"{toolCall.FunctionName}({toolCall.FunctionArguments})");
+    try {
         return await toolDef.Function(input);
-    }
-    catch (Exception err)
-    {
+    } catch (Exception err) {
         return $"Error: {err}";
     }
 }
@@ -886,36 +754,23 @@ async Task<string> ExecuteTool(
 
 ```ts
 async function executeTool(
-    toolCall: OpenAI
-        .ChatCompletionMessageFunctionToolCall,
+    toolCall: OpenAI.ChatCompletionMessageFunctionToolCall,
 ): Promise<string> {
-    const { name, arguments: args } =
-        toolCall.function;
-
-    const toolDef = tools.find(
-        (t) => t.name === name,
-    );
-
-    if (!toolDef) {
-        return "tool not found";
-    }
+    const { name, arguments: args } = toolCall.function;
+    const toolDef = tools.find(t => t.name === name);
+    if (!toolDef) return "tool not found";
 
     const input = JSON.parse(args);
-    logger.tool(
-        `${name}(${JSON.stringify(input)})`,
-    );
-
+    logger.tool(`${name}(${JSON.stringify(input)})`);
     try {
         return await toolDef.function(input);
-    } catch (err) {
-        return `Error: ${err}`;
-    }
+    } catch (err) { return `Error: ${err}`; }
 }
 ```
 
 <style>
-.two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.5em; line-height: 1.3;
+:deep(.col-left pre), :deep(.col-right pre) {
+  font-size: 0.6em; line-height: 1.3;
 }
 </style>
 
@@ -928,10 +783,9 @@ Extra features beyond the original article:
 <v-clicks>
 
 1. **AGENTS.md as system prompt** -- loaded at startup, prepended to conversation
-2. **Think tag parsing** -- Qwen wraps reasoning in `<think>...</think>`, displayed separately
-3. **Logger class** -- colored output with ANSI escape codes
-4. **Streaming with fallback** -- try streaming first, fall back silently
-5. **Loading spinner** -- braille animation while waiting for response
+2. **Loading spinner** -- braille animation while waiting for response
+3. **Logger class** -- colored ANSI output for each message type
+4. **And more** -- streaming, think tag parsing...
 
 </v-clicks>
 
@@ -945,18 +799,11 @@ layout: two-cols
 var messages = new List<ChatMessage>();
 
 // Load AGENTS.md as system prompt
-try
-{
-    var agentsMd =
-        await File.ReadAllTextAsync("../AGENTS.md");
+try {
+    var agentsMd = await File.ReadAllTextAsync("../AGENTS.md");
     if (!string.IsNullOrWhiteSpace(agentsMd))
-        messages.Add(
-            ChatMessage
-                .CreateSystemMessage(agentsMd));
-}
-catch { }
-
-
+        messages.Add(ChatMessage.CreateSystemMessage(agentsMd));
+} catch { }
 
 // ... rest of agent loop
 ```
@@ -966,173 +813,21 @@ catch { }
 # TS: AGENTS.md
 
 ```ts
-const messages:
-    OpenAI.ChatCompletionMessageParam[] = [];
+const messages: OpenAI.ChatCompletionMessageParam[] = [];
 
 // Load AGENTS.md as system prompt
 try {
-    const agentsMd =
-        await Bun.file("../AGENTS.md").text();
-    if (agentsMd.trim()) {
-        messages.push({
-            role: "system",
-            content: agentsMd,
-        });
-    }
+    const agentsMd = await Bun.file("../AGENTS.md").text();
+    if (agentsMd.trim())
+        messages.push({ role: "system", content: agentsMd });
 } catch {}
-
-
 
 // ... rest of agent loop
 ```
 
 <style>
-.two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.55em; line-height: 1.3;
-}
-</style>
-
----
-layout: two-cols
----
-
-# C#: Think Tags
-
-```csharp
-void PrintThinkingAndResponse(string text)
-{
-    var match = Regex.Match(text,
-        @"^<think>([\s\S]*?)</think>([\s\S]*)$");
-
-    if (match.Success)
-    {
-        var thinking =
-            match.Groups[1].Value.Trim();
-        var answer =
-            match.Groups[2].Value.Trim();
-        if (thinking.Length > 0)
-            logger.Thinking(thinking);
-        if (answer.Length > 0)
-            logger.Agent(answer);
-    }
-    else
-    {
-        logger.Agent(text);
-    }
-}
-```
-
-::right::
-
-# TS: Think Tags
-
-```ts
-function printThinkingAndResponse(
-    content: string,
-) {
-    const thinkMatch = content.match(
-        /^<think>([\s\S]*?)<\/think>([\s\S]*)$/,
-    );
-
-    if (thinkMatch) {
-        const thinking = thinkMatch[1].trim();
-        const answer = thinkMatch[2].trim();
-
-        if (thinking)
-            logger.thinking(thinking);
-        if (answer)
-            logger.agent(answer);
-    } else {
-        logger.agent(content);
-    }
-}
-```
-
-<style>
-.two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.55em; line-height: 1.3;
-}
-</style>
-
----
-layout: two-cols
----
-
-# C#: Streaming
-
-```csharp {8-9,11-14,16}
-async Task<(string content,
-    List<ChatToolCall> toolCalls)>
-    CallModelStreaming(
-    List<ChatMessage> msgs,
-    ChatCompletionOptions options,
-    Action stopSpinner)
-{
-    var stream = client
-        .CompleteChatStreamingAsync(msgs, options);
-
-    var content = "";
-    var toolCallMap = new Dictionary<int,
-        (string id, string name, string args)>();
-    var first = true;
-
-    await foreach (var update in stream)
-    {
-        if (first)
-        { stopSpinner(); first = false; }
-
-        foreach (var part in update.ContentUpdate)
-            content += part.Text;
-        foreach (var tc in update.ToolCallUpdates)
-        {   // accumulate by index...
-        }
-    }
-    if (first) stopSpinner();
-    return (content, toolCalls);
-}
-```
-
-::right::
-
-# TS: Streaming
-
-```ts {8-10,12-14,17}
-async function callModelStreaming(
-    messages: OpenAI.ChatCompletionMessageParam[],
-    stopSpinner: () => void,
-): Promise<{
-    content: string;
-    toolCalls: AccumulatedToolCall[];
-}> {
-    const stream = await client.chat.completions
-        .create({ model, messages, tools: chatTools,
-            stream: true });
-
-    let content = "";
-    const toolCallMap =
-        new Map<number, AccumulatedToolCall>();
-    let first = true;
-
-    for await (const chunk of stream) {
-        if (first) {
-            stopSpinner(); first = false;
-        }
-        const delta = chunk.choices[0]?.delta;
-
-        if (delta.content)
-            content += delta.content;
-        if (delta.tool_calls) {
-            // accumulate by index...
-        }
-    }
-
-    return { content, toolCalls };
-}
-```
-
-<style>
-.two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.45em; line-height: 1.3;
+:deep(.col-left pre), :deep(.col-right pre) {
+  font-size: 0.6em; line-height: 1.3;
 }
 </style>
 
@@ -1143,29 +838,17 @@ layout: two-cols
 # C#: Spinner
 
 ```csharp
-public Action StartSpinner()
-{
-    var frames = new[] {
-        "⠋","⠙","⠹","⠸",
-        "⠼","⠴","⠦","⠧","⠇","⠏" };
+public Action StartSpinner() {
+    var frames = new[] { "⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏" };
     var i = 0;
     var cts = new CancellationTokenSource();
-    _ = Task.Run(async () =>
-    {
-        while (!cts.Token.IsCancellationRequested)
-        {
-            Console.Write(
-                $"\r{frames[i++ % frames.Length]}");
-            try {
-                await Task.Delay(80, cts.Token);
-            } catch { break; }
+    _ = Task.Run(async () => {
+        while (!cts.Token.IsCancellationRequested) {
+            Console.Write($"\r{frames[i++ % frames.Length]}");
+            try { await Task.Delay(80, cts.Token); } catch { break; }
         }
     });
-    return () =>
-    {
-        cts.Cancel();
-        Console.Write("\r\x1b[K");
-    };
+    return () => { cts.Cancel(); Console.Write("\r\x1b[K"); };
 }
 ```
 
@@ -1177,19 +860,11 @@ Uses **Task.Run + CancellationToken** for concurrent animation.
 
 ```ts
 function startSpinner(): () => void {
-    const frames = [
-        "⠋","⠙","⠹","⠸",
-        "⠼","⠴","⠦","⠧","⠇","⠏",
-    ];
+    const frames = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"];
     let i = 0;
     const id = setInterval(() => {
-        process.stdout.write(
-            `\r${frames[i++ % frames.length]}`,
-        );
+        process.stdout.write(`\r${frames[i++ % frames.length]}`);
     }, 80);
-
-
-
     return () => {
         clearInterval(id);
         process.stdout.write("\r\x1b[K");
@@ -1200,10 +875,62 @@ function startSpinner(): () => void {
 Uses **setInterval** -- returns a cleanup function.
 
 <style>
-.two-cols .col-left pre, .two-cols .col-right pre {
-  font-size: 0.55em; line-height: 1.3;
+:deep(.col-left pre), :deep(.col-right pre) {
+  font-size: 0.6em; line-height: 1.3;
 }
 </style>
+
+---
+layout: two-cols
+---
+
+# C#: Logger
+
+```csharp
+class Logger {
+    void Print(string color, string label, string msg = "") =>
+        Console.WriteLine($"\n{color}{label}\x1b[0m{msg}");
+
+    public void User()               => Console.Write("\n\x1b[32mUser: \x1b[0m");
+    public void Agent(string msg)    => Print("\x1b[34m", "Agent: ",    msg);
+    public void Tool(string msg)     => Print("\x1b[33m", "[tool] ",    msg);
+    public void Thinking(string msg) => Print("\x1b[90m", "[thinking] ", msg);
+}
+```
+
+::right::
+
+# TS: Logger
+
+```ts
+const logger = {
+    user:     () =>
+        process.stdout.write("\n\x1b[32mUser: \x1b[0m"),
+    agent:    (msg: string) =>
+        console.log("\n\x1b[34mAgent:\x1b[0m",    msg),
+    tool:     (msg: string) =>
+        console.log("\n\x1b[33m[tool]\x1b[0m",    msg),
+    thinking: (msg: string) =>
+        console.log("\n\x1b[90m[thinking]\x1b[0m", msg),
+};
+```
+
+<style>
+:deep(.col-left pre), :deep(.col-right pre) {
+  font-size: 0.6em; line-height: 1.3;
+}
+</style>
+
+---
+
+# And More...
+
+<v-clicks>
+
+- **Streaming** -- real-time output via `CompleteChatStreamingAsync` (C#) / `{ stream: true }` (TS)
+- **Think tag parsing** -- Qwen wraps reasoning in `<think>...</think>`, displayed separately from the answer
+
+</v-clicks>
 
 ---
 layout: center
