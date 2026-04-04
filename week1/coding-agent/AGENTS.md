@@ -8,7 +8,7 @@ This repo provides two alternative reference implementations (Go and TypeScript)
 
 ## Key decisions
 
-- **OpenRouter instead of Anthropic API**: OpenRouter has a free tier (`qwen/qwen3.6-plus-preview:free`) so students can run demos without paying. Free-tier models may train on inputs.
+- **OpenRouter instead of Anthropic API**: OpenRouter has a free tier (`qwen/qwen3.6-plus:free`) so students can run demos without paying. Free-tier models may train on inputs.
 - **OpenAI SDK, not Anthropic SDK**: The OpenAI SDK is the most widely used and OpenRouter is OpenAI-compatible. Inline comments in `go/main.go` map each `openai.*` call to the equivalent `anthropic.*` call from the original tutorial.
 - **`go/main.go` inline comments**: These `// anthropic.*` comments are intentional teaching aids. Do not remove them.
 - **Streaming with fallback**: Both agents try streaming first. If the model doesn't support it, they fall back to a standard request silently.

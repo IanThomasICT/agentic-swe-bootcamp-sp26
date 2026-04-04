@@ -15,7 +15,7 @@ Both implement the same three tools: `read_file`, `list_files`, `edit_file`.
    - Create an account (or sign in with Google/GitHub)
    - Click **Create Key**, copy the key
    
-   We use [OpenRouter](https://openrouter.ai) because it offers free-tier models (like `qwen/qwen3.6-plus-preview:free`), so you can run these demos without spending anything. Note: free models may use your prompts and responses for training. Don't send anything sensitive.
+   We use [OpenRouter](https://openrouter.ai) because it offers free-tier models (like `qwen/qwen3.6-plus:free`), so you can run these demos without spending anything. Note: free models may use your prompts and responses for training. Don't send anything sensitive.
 
 2. Create a `.env` file in this directory:
    ```

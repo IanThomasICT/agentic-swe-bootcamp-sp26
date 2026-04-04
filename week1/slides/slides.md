@@ -163,7 +163,7 @@ We use **OpenRouter** instead:
 
 <v-clicks>
 
-- **Free tier** -- `qwen/qwen3.6-plus-preview:free` costs nothing
+- **Free tier** -- `qwen/qwen3.6-plus:free` costs nothing
 - **OpenAI-compatible API** -- use the most popular SDK
 - Students can run demos **without paying**
 
@@ -187,43 +187,29 @@ import (
     anthropic "github.com/anthropics/anthropic-sdk-go"
     "github.com/invopop/jsonschema"
 )
+
 // ... Logger, helpers (unchanged)
-type ToolDefinition struct {
-    Name, Description string
-    InputSchema       anthropic.ToolInputSchemaParam
-    Function          func(json.RawMessage) (string, error)
-}
-// ... tool schemas via jsonschema.GenerateSchema[T]()
-// ... ReadFile, ListFiles, EditFile functions (unchanged)
+
 func main() {
     client := anthropic.NewClient()
     // ... more
 }
+    
 type Agent struct { client *anthropic.Client /* ... */ }
+
 func (a *Agent) Run(ctx context.Context) error {
     conversation := []anthropic.MessageParam{}
     // ... build []anthropic.ToolUnionParam
     //     via OfTool: &anthropic.ToolParam{Name, Desc, InputSchema}
     // ... loop: anthropic.NewUserMessage(anthropic.NewTextBlock(input))
+    
     client.Messages.New(ctx, anthropic.MessageNewParams{
         Model: anthropic.ModelClaude3_7SonnetLatest,
         Messages: conversation, Tools: chatTools,
     })
     // ... more
 }
-
-// ... executeTool → anthropic.NewToolResultBlock(id, resp, false)
-```
-
-```go
-// main.go — OpenAI SDK via OpenRouter
-package main
-import (
-    openai "github.com/openai/openai-go"          // was anthropic
-    "github.com/openai/openai-go/option"           // new
-    "github.com/openai/openai-go/shared"           // new
-)
-// ... Logger, helpers (unchanged)
+    
 type ToolDefinition struct {
     Name, Description string
     InputSchema       anthropic.ToolInputSchemaParam
@@ -231,6 +217,63 @@ type ToolDefinition struct {
 }
 // ... tool schemas via jsonschema.GenerateSchema[T]()
 // ... ReadFile, ListFiles, EditFile functions (unchanged)
+
+// ... executeTool → anthropic.NewToolResultBlock(id, resp, false)
+```
+
+```go
+// main.go — Anthropic SDK (from the article)
+package main
+import (
+    openai "github.com/openai/openai-go"           // was anthropic
+    "github.com/openai/openai-go/option"           // new
+    "github.com/openai/openai-go/shared"           // new
+)
+
+// ... Logger, helpers (unchanged)
+
+func main() {
+    client := anthropic.NewClient()
+    // ... more
+}
+    
+type Agent struct { client *anthropic.Client /* ... */ }
+
+func (a *Agent) Run(ctx context.Context) error {
+    conversation := []anthropic.MessageParam{}
+    // ... build []anthropic.ToolUnionParam
+    //     via OfTool: &anthropic.ToolParam{Name, Desc, InputSchema}
+    // ... loop: anthropic.NewUserMessage(anthropic.NewTextBlock(input))
+
+    client.Messages.New(ctx, anthropic.MessageNewParams{
+        Model: anthropic.ModelClaude3_7SonnetLatest,
+        Messages: conversation, Tools: chatTools,
+    })
+    // ... more
+}
+    
+type ToolDefinition struct {
+    Name, Description string
+    InputSchema       anthropic.ToolInputSchemaParam
+    Function          func(json.RawMessage) (string, error)
+}
+// ... tool schemas via jsonschema.GenerateSchema[T]()
+// ... ReadFile, ListFiles, EditFile functions (unchanged)
+
+// ... executeTool → anthropic.NewToolResultBlock(id, resp, false)
+```
+            
+```go
+// main.go — OpenAI SDK via OpenRouter
+package main
+import (
+    openai "github.com/openai/openai-go"           
+    "github.com/openai/openai-go/option"           
+    "github.com/openai/openai-go/shared"           
+)
+
+// ... Logger, helpers (unchanged)
+
 func main() {
     client := openai.NewClient(                    // was anthropic.NewClient()
         option.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
@@ -238,19 +281,29 @@ func main() {
     )
     // ... more
 }
+    
 type Agent struct { client *openai.Client /* ... */ }  // was *anthropic.Client
 func (a *Agent) Run(ctx context.Context) error {
     conversation := []anthropic.MessageParam{}
     // ... build []anthropic.ToolUnionParam
     //     via OfTool: &anthropic.ToolParam{Name, Desc, InputSchema}
     // ... loop: anthropic.NewUserMessage(anthropic.NewTextBlock(input))
+
     client.Messages.New(ctx, anthropic.MessageNewParams{
         Model: anthropic.ModelClaude3_7SonnetLatest,
         Messages: conversation, Tools: chatTools,
     })
     // ... more
 }
-// ... runStreaming via client.Messages.NewStreaming(ctx, params)
+    
+type ToolDefinition struct {
+    Name, Description string
+    InputSchema       anthropic.ToolInputSchemaParam
+    Function          func(json.RawMessage) (string, error)
+}
+// ... tool schemas via jsonschema.GenerateSchema[T]()
+// ... ReadFile, ListFiles, EditFile functions (unchanged)
+
 // ... executeTool → anthropic.NewToolResultBlock(id, resp, false)
 ```
 
@@ -262,14 +315,9 @@ import (
     "github.com/openai/openai-go/option"
     "github.com/openai/openai-go/shared"
 )
+
 // ... Logger, helpers (unchanged)
-type ToolDefinition struct {
-    Name, Description string
-    Parameters        shared.FunctionParameters           // was InputSchema
-    Function          func(json.RawMessage) (string, error)
-}
-// ... tool schemas via shared.FunctionParameters{...}     was GenerateSchema
-// ... ReadFile, ListFiles, EditFile functions (unchanged)
+
 func main() {
     client := openai.NewClient(
         option.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
@@ -277,19 +325,30 @@ func main() {
     )
     // ... more
 }
+        
 type Agent struct { client *openai.Client /* ... */ }
 func (a *Agent) Run(ctx context.Context) error {
-    conversation := []openai.ChatCompletionMessageParamUnion{}  // was anthropic
+    conversation := []openai.ChatCompletionMessageParamUnion{}   // was anthropic.MessageParam
     // ... build []openai.ChatCompletionToolParam                // was ToolUnionParam
     //     via Function: shared.FunctionDefinitionParam{...}     // was OfTool
     // ... loop: openai.UserMessage(input)                       // was NewUserMessage
+
     client.Messages.New(ctx, anthropic.MessageNewParams{
         Model: anthropic.ModelClaude3_7SonnetLatest,
         Messages: conversation, Tools: chatTools,
     })
     // ... more
 }
-// ... runStreaming via client.Messages.NewStreaming(ctx, params)
+                
+    
+type ToolDefinition struct {
+    Name, Description string
+    InputSchema       anthropic.ToolInputSchemaParam
+    Function          func(json.RawMessage) (string, error)
+}
+// ... tool schemas via jsonschema.GenerateSchema[T]()
+// ... ReadFile, ListFiles, EditFile functions (unchanged)
+
 // ... executeTool → anthropic.NewToolResultBlock(id, resp, false)
 ```
 
@@ -301,37 +360,86 @@ import (
     "github.com/openai/openai-go/option"
     "github.com/openai/openai-go/shared"
 )
+
 // ... Logger, helpers (unchanged)
-type ToolDefinition struct {
-    Name, Description string
-    Parameters        shared.FunctionParameters
-    Function          func(json.RawMessage) (string, error)
-}
-// ... tool schemas via shared.FunctionParameters{...}
-// ... ReadFile, ListFiles, EditFile functions (unchanged)
+
 func main() {
     client := openai.NewClient(
         option.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
         option.WithBaseURL("https://openrouter.ai/api/v1"),
     )
     // ... more
-}
+    }
+    
 type Agent struct { client *openai.Client /* ... */ }
 func (a *Agent) Run(ctx context.Context) error {
     conversation := []openai.ChatCompletionMessageParamUnion{}
     // ... build []openai.ChatCompletionToolParam
-
     //     via Function: shared.FunctionDefinitionParam{...}
-    
     // ... loop: openai.UserMessage(input)
-
+    
     client.Chat.Completions.New(ctx,                       // was Messages.New
-        openai.ChatCompletionNewParams{                     // was anthropic.MessageNewParams
-            Model: "qwen/qwen3.6-plus:free",       // was ModelClaude3_7SonnetLatest
+        openai.ChatCompletionNewParams{                    // was anthropic.MessageNewParams
+            Model: "qwen/qwen3.6-plus:free",               // was ModelClaude3_7SonnetLatest
             Messages: conversation, Tools: chatTools,
-        })
+        }
+    )
     // ... more
 }
+
+type ToolDefinition struct {
+    Name, Description string
+    InputSchema       anthropic.ToolInputSchemaParam
+    Function          func(json.RawMessage) (string, error)
+}
+// ... tool schemas via jsonschema.GenerateSchema[T]()
+// ... ReadFile, ListFiles, EditFile functions (unchanged)
+
+// ... executeTool → anthropic.NewToolResultBlock(id, resp, false)
+```
+
+```go
+// main.go — OpenAI SDK via OpenRouter
+package main
+import (
+    openai "github.com/openai/openai-go"
+    "github.com/openai/openai-go/option"
+    "github.com/openai/openai-go/shared"
+)
+
+// ... Logger, helpers (unchanged)
+
+func main() {
+    client := openai.NewClient(
+        option.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
+        option.WithBaseURL("https://openrouter.ai/api/v1"),
+    )
+    // ... more
+    }
+    
+type Agent struct { client *openai.Client /* ... */ }
+func (a *Agent) Run(ctx context.Context) error {
+    conversation := []openai.ChatCompletionMessageParamUnion{}
+    // ... build []openai.ChatCompletionToolParam
+    //     via Function: shared.FunctionDefinitionParam{...}
+    // ... loop: openai.UserMessage(input)
+    
+    client.Chat.Completions.New(ctx,                       // was Messages.New
+        openai.ChatCompletionNewParams{                    // was anthropic.MessageNewParams
+            Model: "qwen/qwen3.6-plus:free",               // was ModelClaude3_7SonnetLatest
+            Messages: conversation, Tools: chatTools,
+        }
+    )
+    // ... more
+}
+
+type ToolDefinition struct {
+    Name, Description string
+    Parameters        shared.FunctionParameters             // InputSchema anthropic.ToolInputSchemaParam -> Parameters 
+    Function          func(json.RawMessage) (string, error)
+}
+// ... tool schemas via shared.FunctionParameters{...}
+// ... ReadFile, ListFiles, EditFile functions (unchanged)
 
 // ... executeTool → openai.ToolMessage(resp, id)           // was NewToolResultBlock
 ```
@@ -352,7 +460,7 @@ using System.ClientModel;
 using OpenAI.Chat;
 
 DotNetEnv.Env.Load("../.env");
-var model = "qwen/qwen3.6-plus-preview:free";
+var model = "qwen/qwen3.6-plus:free";
 var apiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY") ?? "";
 var client = new ChatClient(model, new ApiKeyCredential(apiKey),
     new OpenAI.OpenAIClientOptions {
@@ -372,7 +480,7 @@ var chatTools = ToolDefinitions.Tools
 import OpenAI from "openai";
 import { tools } from "./tools";
 
-const model = "qwen/qwen3.6-plus-preview:free";
+const model = "qwen/qwen3.6-plus:free";
 const client = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
     baseURL: "https://openrouter.ai/api/v1",
@@ -389,7 +497,8 @@ const chatTools: OpenAI.ChatCompletionTool[] =
 <style>
 h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.45em !important; line-height: 1.3 !important;
+  margin: 0 5px 0 0;
 }
 </style>
 
@@ -443,7 +552,8 @@ async function runAgent() {
 <style>
 h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.45em !important; line-height: 1.3 !important;
+  margin: 0 5px 0 0;
 }
 </style>
 
@@ -510,7 +620,8 @@ const schema = {
 <style>
 h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.45em !important; line-height: 1.3 !important;
+  margin: 0 5px 0 0;
 }
 </style>
 
@@ -559,7 +670,8 @@ const ReadFileDefinition = {
 <style>
 h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.45em !important; line-height: 1.3 !important;
+  margin: 0 5px 0 0;
 }
 </style>
 
@@ -621,7 +733,8 @@ while (toolCalls.length > 0) {
 <style>
 h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.45em !important; line-height: 1.3 !important;
+  margin: 0 5px 0 0;
 }
 </style>
 
@@ -666,7 +779,8 @@ async function listFiles(input: unknown) {
 <style>
 h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.45em !important; line-height: 1.3 !important;
+  margin: 0 5px 0 0;
 }
 </style>
 
@@ -732,7 +846,8 @@ async function editFile(input: unknown) {
 <style>
 h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.45em; line-height: 1.3;
+  font-size: 0.45em !important; line-height: 1.3 !important;
+  margin: 0 5px 0 0;
 }
 </style>
 
@@ -781,7 +896,8 @@ async function executeTool(
 <style>
 h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.45em !important; line-height: 1.3 !important;
+  margin: 0 5px 0 0;
 }
 </style>
 
@@ -839,7 +955,8 @@ try {
 <style>
 h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.5em !important; line-height: 1.3 !important;
+  margin: 0 5px 0 0;
 }
 </style>
 
@@ -889,7 +1006,8 @@ Uses **setInterval** -- returns a cleanup function.
 <style>
 h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.45em !important; line-height: 1.3 !important;
+  margin: 0 5px 0 0;
 }
 </style>
 
@@ -931,7 +1049,8 @@ const logger = {
 <style>
 h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.45em !important; line-height: 1.3 !important;
+  margin: 0 5px 0 0;
 }
 </style>
 
@@ -943,6 +1062,8 @@ h1 { font-size: 1.2em; }
 
 - **Streaming** -- real-time output via `CompleteChatStreamingAsync` (C#) / `{ stream: true }` (TS)
 - **Think tag parsing** -- Qwen wraps reasoning in `<think>...</think>`, displayed separately from the answer
+- **Model picker**
+- etc.
 
 </v-clicks>
 

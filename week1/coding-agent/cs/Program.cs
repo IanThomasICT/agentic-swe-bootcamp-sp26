@@ -9,7 +9,7 @@ DotNetEnv.Env.Load("../.env");
 
 // Using OpenAI SDK since OpenRouter is OpenAI-compatible. Just set the endpoint to OpenRouter.
 // mirrors TS: new OpenAI({ apiKey, baseURL: "https://openrouter.ai/api/v1" })
-var model = "qwen/qwen3.6-plus-preview:free";
+var model = "qwen/qwen3.6-plus:free";
 var apiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY") ?? "";
 var client = new ChatClient(
     model,
