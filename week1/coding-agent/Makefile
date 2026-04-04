@@ -1,7 +1,7 @@
 .PHONY: go ts cs slides lint-slides
 
 go:
-	cd go && go run main.go
+	cd go && go run .
 
 ts:
 	cd ts && bun dev
