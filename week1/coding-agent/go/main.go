@@ -204,7 +204,9 @@ func (l *Logger) Thinking(msg string) {
 
 func (l *Logger) StartSpinner() func() {
 	stop := make(chan struct{})
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 		i := 0
 		for {
@@ -219,7 +221,10 @@ func (l *Logger) StartSpinner() func() {
 			}
 		}
 	}()
-	return func() { close(stop) }
+	return func() {
+		close(stop)
+		<-done // wait for goroutine to clear the spinner before returning
+	}
 }
 
 var logger = NewLogger()
