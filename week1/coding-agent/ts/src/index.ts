@@ -9,7 +9,7 @@ const client = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
 });
 
-const model = "qwen/qwen3.6-plus-preview:free";
+const model = "qwen/qwen3.6-plus:free"
 
 class Logger {
   private useColor: boolean;

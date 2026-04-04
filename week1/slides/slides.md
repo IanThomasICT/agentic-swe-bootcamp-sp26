@@ -211,7 +211,7 @@ func (a *Agent) Run(ctx context.Context) error {
     })
     // ... more
 }
-// ... runStreaming via client.Messages.NewStreaming(ctx, params)
+
 // ... executeTool → anthropic.NewToolResultBlock(id, resp, false)
 ```
 
@@ -320,16 +320,19 @@ type Agent struct { client *openai.Client /* ... */ }
 func (a *Agent) Run(ctx context.Context) error {
     conversation := []openai.ChatCompletionMessageParamUnion{}
     // ... build []openai.ChatCompletionToolParam
+
     //     via Function: shared.FunctionDefinitionParam{...}
+    
     // ... loop: openai.UserMessage(input)
+
     client.Chat.Completions.New(ctx,                       // was Messages.New
         openai.ChatCompletionNewParams{                     // was anthropic.MessageNewParams
-            Model: "qwen/qwen3.6-plus-preview:free",       // was ModelClaude3_7SonnetLatest
+            Model: "qwen/qwen3.6-plus:free",       // was ModelClaude3_7SonnetLatest
             Messages: conversation, Tools: chatTools,
         })
     // ... more
 }
-// ... runStreaming via client.Chat.Completions.NewStreaming // was Messages
+
 // ... executeTool → openai.ToolMessage(resp, id)           // was NewToolResultBlock
 ```
 ````
@@ -384,8 +387,9 @@ const chatTools: OpenAI.ChatCompletionTool[] =
 ```
 
 <style>
+h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.55em; line-height: 1.3;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -437,8 +441,9 @@ async function runAgent() {
 ```
 
 <style>
+h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.55em; line-height: 1.3;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -503,8 +508,9 @@ const schema = {
 ```
 
 <style>
+h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.55em; line-height: 1.3;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -551,8 +557,9 @@ const ReadFileDefinition = {
 ```
 
 <style>
+h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.6em; line-height: 1.3;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -612,8 +619,9 @@ while (toolCalls.length > 0) {
 ```
 
 <style>
+h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.55em; line-height: 1.3;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -656,8 +664,9 @@ async function listFiles(input: unknown) {
 ```
 
 <style>
+h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.6em; line-height: 1.3;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -721,8 +730,9 @@ async function editFile(input: unknown) {
 ```
 
 <style>
+h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.5em; line-height: 1.3;
+  font-size: 0.45em; line-height: 1.3;
 }
 </style>
 
@@ -769,8 +779,9 @@ async function executeTool(
 ```
 
 <style>
+h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.6em; line-height: 1.3;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -826,8 +837,9 @@ try {
 ```
 
 <style>
+h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.6em; line-height: 1.3;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -875,8 +887,9 @@ function startSpinner(): () => void {
 Uses **setInterval** -- returns a cleanup function.
 
 <style>
+h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.6em; line-height: 1.3;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
@@ -916,8 +929,9 @@ const logger = {
 ```
 
 <style>
+h1 { font-size: 1.2em; }
 :deep(.col-left pre), :deep(.col-right pre) {
-  font-size: 0.6em; line-height: 1.3;
+  font-size: 0.5em; line-height: 1.3;
 }
 </style>
 
