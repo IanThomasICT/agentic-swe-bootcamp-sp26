@@ -2,11 +2,11 @@
 
 Reference implementations of the code-editing agent from [How to Build an Agent](https://ampcode.com/notes/how-to-build-an-agent). The original tutorial uses the Anthropic SDK in Go. This repo has three alternative versions using the OpenAI SDK via OpenRouter:
 
-- **`go/`** - Go
-- **`ts/`** - TypeScript (Bun)
-- **`cs/`** - C# (.NET 9)
+- **[`go/`](go/)** - Go
+- **[`ts/`](ts/)** - TypeScript (Bun) -- supports global CLI install via `bun link`
+- **[`cs/`](cs/)** - C# (.NET 9)
 
-All three implement the same three tools (`read_file`, `list_files`, `edit_file`) and share the same architecture.
+All three implement the same three tools (`read_file`, `list_files`, `edit_file`) and share the same architecture. See each subdirectory's README for language-specific setup details.
 
 ## Setup
 
@@ -15,7 +15,7 @@ All three implement the same three tools (`read_file`, `list_files`, `edit_file`
    - Create an account (or sign in with Google/GitHub)
    - Click **Create Key**, copy the key
 
-   We use [OpenRouter](https://openrouter.ai) because it offers free-tier models (like `qwen/qwen3.6-plus:free`), so you can run these demos without spending anything. Note: free-tier models may use your prompts and responses for training. Don't send anything sensitive.
+   We use [OpenRouter](https://openrouter.ai) because it offers free-tier models (like `qwen/qwen3.6-plus:free`), so you can run these demos without spending anything. You can browse other free models at [openrouter.ai/models](https://openrouter.ai/models?max_price=0&fmt=cards&categories=programming). Note: free-tier models may use your prompts and responses for training. Don't send anything sensitive.
 
 2. **Create a `.env` file in this directory:**
    ```
@@ -66,3 +66,4 @@ Use `ctrl-c` to quit.
 - **Streaming with fallback**: Attempts streaming first; falls back to a standard request if the model doesn't support it.
 - **`<think>` tag parsing**: Qwen models wrap chain-of-thought reasoning in `<think>...</think>` tags. The agents parse these and display thinking in grey italic, separate from the final answer.
 - **`AGENTS.md` as system prompt**: All three agents read `AGENTS.md` at startup and prepend it as a system message. Edit this file to customize the agent's behavior.
+- **Global CLI install (TypeScript only)**: The TypeScript agent demonstrates how it can be installed as a global `agentts` command via `bun link`, so you can run it from any directory on your machine and use it in that directory. See [ts/README.md](ts/) for details.
