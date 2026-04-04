@@ -686,8 +686,7 @@ layout: two-cols
 
 while (toolCalls.Count > 0)
 {
-    messages.Add(
-        new AssistantChatMessage(toolCalls));
+    messages.Add(new AssistantChatMessage(toolCalls));
 
     foreach (var tc in toolCalls)
     {
@@ -696,8 +695,7 @@ while (toolCalls.Count > 0)
             .CreateToolMessage(tc.Id, result));
     }
 
-    (content, toolCalls) =
-        await CallModel(messages);
+    (content, toolCalls) = await CallModel(messages);
 }
 ```
 
@@ -725,8 +723,7 @@ while (toolCalls.length > 0) {
             content: result });
     }
 
-    ({ content, toolCalls } =
-        await callModel(messages));
+    const { content, toolCalls } = await callModel(messages);
 }
 ```
 
@@ -878,9 +875,7 @@ async Task<string> ExecuteTool(ChatToolCall toolCall) {
 # TS: executeTool
 
 ```ts
-async function executeTool(
-    toolCall: OpenAI.ChatCompletionMessageFunctionToolCall,
-): Promise<string> {
+async function executeTool(toolCall: OpenAI.ChatCompletionMessageFunctionToolCall) {
     const { name, arguments: args } = toolCall.function;
     const toolDef = tools.find(t => t.name === name);
     if (!toolDef) return "tool not found";
@@ -1035,14 +1030,10 @@ class Logger {
 
 ```ts
 const logger = {
-    user:     () =>
-        process.stdout.write("\n\x1b[32mUser: \x1b[0m"),
-    agent:    (msg: string) =>
-        console.log("\n\x1b[34mAgent:\x1b[0m",    msg),
-    tool:     (msg: string) =>
-        console.log("\n\x1b[33m[tool]\x1b[0m",    msg),
-    thinking: (msg: string) =>
-        console.log("\n\x1b[90m[thinking]\x1b[0m", msg),
+    user:     () => process.stdout.write("\n\x1b[32mUser: \x1b[0m"),
+    agent:    (msg: string) => console.log("\n\x1b[34mAgent:\x1b[0m", msg),
+    tool:     (msg: string) => console.log("\n\x1b[33m[tool]\x1b[0m", msg),
+    thinking: (msg: string) => console.log("\n\x1b[90m[thinking]\x1b[0m", msg),
 };
 ```
 
