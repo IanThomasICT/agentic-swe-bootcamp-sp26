@@ -14,6 +14,21 @@ Course materials and homework for the Agentic Software Engineering Bootcamp. Eac
 
 - **Three reference implementations** of the same agent across [Go](week1/coding-agent/go/), [TypeScript](week1/coding-agent/ts/), and [C#](week1/coding-agent/cs/)
 - **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
+- **Free-tier models** via [OpenRouter](https://openrouter.ai) — no API costs required (`qwen/qwen3.6-plus:free`)
 - **Streaming with fallback**, thinking tag parsing, and `AGENTS.md` as system prompt
 - Based on the tutorial at [How to Build an Agent](https://ampcode.com/notes/how-to-build-an-agent)
 
